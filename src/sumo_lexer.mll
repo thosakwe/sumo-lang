@@ -41,12 +41,14 @@ rule read = parse
   | '?' { QUESTION }
 
   | "external" { EXTERNAL }
+  | "final" { FINAL }
   | "fn" { FN }
   | "public" { VIS Visibility.Public }
   | "protected" { VIS Visibility.Protected }
   | "private" { VIS Visibility.Private }
   | "return" { RETURN }
   | "this" { THIS }
+  | "var" { VAR }
 
   | "true" { BOOL true }
   | "false" { BOOL false }

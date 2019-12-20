@@ -144,6 +144,7 @@ and compile_func_signature context sign =
 
 and compile_stmt context = function
   (* If we hit a return, make sure that we are returning the correct type. *)
+  (* TODO: Only allow certain types to be returned (no closures yet) *)
   | Ast.Return (span, v_opt) -> begin
       let (new_ctx, actual_return_type, value) = match v_opt with
         | None -> (context, VoidType, None)

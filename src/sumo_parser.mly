@@ -2,7 +2,7 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
 
-%token EXTERNAL FN RETURN THIS
+%token EXTERNAL FINAL FN RETURN THIS VAR
 %token <Visibility.t> VIS
 %token <string> C_NAME
 
@@ -70,6 +70,22 @@ stmt:
   | b = block { Ast.Block ($loc, b) }
   | e = expr { Ast.Expr ($loc, e) }
   | RETURN; v = option(expr) { Ast.Return ($loc, v) }
+  | m = mut; d = separated_list(COMMA, var_decl)
+    {
+      let expand_decl (span, name, value) =
+        (span, m, name, value)
+      in
+      Ast.VarDecl (List.map expand_decl d)
+    }
+;
+
+var_decl:
+  n = id; EQUALS; v = expr { ($loc, n, v) }
+;
+
+mut:
+  | VAR { true }
+  | FINAL { false }
 ;
 
 expr:

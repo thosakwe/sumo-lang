@@ -10,7 +10,7 @@ and stmt =
   | Expr of span * expr
   | VarDecl of var_decl list
   | Return of span * (expr option)
-and var_decl = span * string * expr
+and var_decl = span * bool * string * expr
 and block = stmt list
 and typ =
   | TypeRef of span * string
