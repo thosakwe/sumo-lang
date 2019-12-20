@@ -214,28 +214,52 @@ and compile_expr context = function
     (context, BoolType, Some (Llvm.const_int (Llvm.i8_type context.llvm_context) value))
   | Ast.Paren (_, inner) -> compile_expr context inner
   (* TODO: If we hit an identifier, we have to look it up to see if we can access it. *)
-  | Ast.Ref (span, name) ->
-    (* If the name doesn't exist, report an error. *)
-    if not (Scope.mem name context.scope) then
-      let error_msg = Scope.does_not_exist name in
-      let new_ctx = emit_error context span error_msg in
-      (new_ctx, VoidType, None)
-    else
-      (* Otherwise, ensure it's a value. *)
-      (* "failure" is just a helper to create the same error in different cases. *)
-      let failure =
-        let error_msg = "The name \"" ^ name ^ "\" does not resolve to a type." in
-        emit_error context span error_msg
-      in
-      match Scope.find name context.scope with
-      (* TODO: Finish this resolution logic *)
-      (* TODO: Also missing ModuleMember lookup *)
-      | ValueSymbol (_, typ) ->
-        (* Fetch the LLVM value. *)
-        let llvm_value = Scope.find name context.llvm_scope in
-        let value = Llvm.build_load llvm_value name context.llvm_builder in
-        (context, typ, Some value)
-      | _ -> (failure, VoidType, None)
+  | Ast.Ref (span, name) -> begin
+      (* If the name doesn't exist, report an error. *)
+      if not (Scope.mem name context.scope) then
+        let error_msg = Scope.does_not_exist name in
+        let new_ctx = emit_error context span error_msg in
+        (new_ctx, VoidType, None)
+      else
+        (* Otherwise, ensure it's a value. *)
+        (* "failure" is just a helper to create the same error in different cases. *)
+        let failure =
+          let error_msg = "The name \"" ^ name ^ "\" does not resolve to a type." in
+          emit_error context span error_msg
+        in
+        match Scope.find name context.scope with
+        (* TODO: Finish this resolution logic *)
+        (* TODO: Also missing ModuleMember lookup *)
+        | ValueSymbol (_, typ) ->
+          (* Fetch the LLVM value. *)
+          let llvm_value = Scope.find name context.llvm_scope in
+          let value = Llvm.build_load llvm_value name context.llvm_builder in
+          (context, typ, Some value)
+        | _ -> (failure, VoidType, None)
+    end
+  | Ast.Call (span, target, args) -> begin
+      (* TODO: Validate types, etc. *)
+      match compile_expr context target with
+      | (new_ctx, _, None) ->
+        let error_msg = "Evaluation of the call target produced an error." in
+        let failure = emit_error new_ctx span error_msg in
+        (failure, VoidType, None)
+      (* TODO: Check target type to ensure it's a function. *)
+      | (new_ctx, _, Some llvm_target) ->
+        (* Compile each arg into an LLVM value, but also return a new context. *)
+        let llvm_of_arg (context, output_list) arg =
+          match compile_expr context arg with
+          | (new_ctx, _, None) -> (new_ctx, output_list)
+          | (new_ctx, _, Some value) -> 
+            (new_ctx, output_list @ [value])
+        in
+        let (next_ctx, llvm_args) = List.fold_left llvm_of_arg (new_ctx, []) args in
+        let llvm_arg_array = Array.of_list llvm_args in
+        let value = Llvm.build_call llvm_target llvm_arg_array "tmp" context.llvm_builder in
+        (* TODO: Get return type from FunctionType *)
+        (* (next_ctx, returns, Some value) *)
+        (next_ctx, IntType, Some value)
+    end
 
 (** Converts a Sema type (not AST) into LLVM. *)
 and llvm_of_sema_type context = function
