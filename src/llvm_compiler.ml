@@ -150,7 +150,7 @@ and compile_stmt context = function
         (* If we are returning a value, compile it, and compare the resulting type. *)
         | Some v -> begin
             let (new_ctx, typ, value) = compile_expr context v in
-            (new_ctx, typ, Some value)
+            (new_ctx, typ, value)
           end
       in
 
@@ -167,7 +167,7 @@ and compile_stmt context = function
   (* If we get an expression, just compile it. *)
   | Ast.Expr (_, v) ->
     let (new_ctx, _, value) = compile_expr context v in
-    (new_ctx, Some value)
+    (new_ctx, value)
   (* TODO: If we get a block, we need to create a new scope, and a new block. *)
   | Ast.Block (_, stmts) -> 
     let compile_one_stmt context stmt =
@@ -179,15 +179,18 @@ and compile_stmt context = function
   | _ -> (context, None)
 
 and compile_expr context = function
-  | Ast.IntLiteral (_, v) -> (context, IntType, Llvm.const_int (Llvm.i64_type context.llvm_context) v)
-  | Ast.DoubleLiteral (_, v) -> (context, DoubleType, Llvm.const_float (Llvm.double_type context.llvm_context) v)
+  | Ast.IntLiteral (_, v) ->
+    (context, IntType, Some (Llvm.const_int (Llvm.i64_type context.llvm_context) v))
+  | Ast.DoubleLiteral (_, v) ->
+    (context, DoubleType, Some (Llvm.const_float (Llvm.double_type context.llvm_context) v))
   | Ast.BoolLiteral (_, v) ->
     let value = if v then 1 else 0 in
-    (context, BoolType, Llvm.const_int (Llvm.i8_type context.llvm_context) value)
+    (context, BoolType, Some (Llvm.const_int (Llvm.i8_type context.llvm_context) value))
   | Ast.Paren (_, inner) -> compile_expr context inner
   (* TODO: If we hit an identifier, we have to look it up to see if we can access it. *)
   | Ast.Ref (_, _) ->
-    (context, IntType, Llvm.const_int (Llvm.i8_type context.llvm_context) 48)
+
+    (context, IntType,Some ( Llvm.const_int (Llvm.i8_type context.llvm_context) 48))
 
 (** Converts a Sema type (not AST) into LLVM. *)
 and llvm_of_sema_type context = function
