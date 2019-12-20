@@ -166,6 +166,7 @@ and compile_stmt context = function
         | Some v -> (new_ctx, Some(Llvm.build_ret v context.llvm_builder))
     end
   (* If we get an expression, just compile it. *)
+  (* TODO: Do these actually generate? *)
   | Ast.Expr (_, v) ->
     let (new_ctx, _, value) = compile_expr context v in
     (new_ctx, value)

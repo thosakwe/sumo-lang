@@ -1,6 +1,5 @@
 external puts() : void
 
 fn main() : int {
-  24
   return 0
 }

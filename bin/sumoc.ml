@@ -5,16 +5,15 @@ let emit_asm = ref false
 let emit_llvm = ref false
 let in_file = ref ""
 let out_file = ref ""
+let optimization_level = ref 0
 
 let set r v =
   r := v
 
-let set_in_file = set in_file
-let set_out_file v = out_file := v
-
 let specs = [
   ("-c", Arg.Set compile_only, "Compile only; do not link. Produces an object file.");
-  ("-o", Arg.String (set out_file), "The file to be created.");
+  ("-o", Arg.Set_string out_file, "The file to be created.");
+  ("-O", Arg.Set_int optimization_level, "The optimization level for Assembly/object files.");
   ("-S", Arg.Set emit_asm, "Emit Assembly code.");
   ("-emit-llvm", Arg.Set emit_llvm, "Emit LLVM IR.");
 ]
@@ -59,6 +58,7 @@ let () =
             let llc_args = [
               "llc";
               ("-o " ^ output_path);
+              ("-O=" ^ (string_of_int !optimization_level));
               ("-filetype=" ^ filetype)
             ]
             in
