@@ -20,6 +20,7 @@ and module_member =
   | Func of Ast.span * string * (typ list) * typ
 and typ =
   | IntType
-  | FloatType
+  | DoubleType
   | BoolType
+  | VoidType
   | OptionalType of typ

@@ -9,7 +9,7 @@ and stmt =
   | Block of block
   | Expr of expr
   | VarDecl of var_decl list
-  | Return of span
+  | Return of span * (expr option)
 and var_decl = span * string * expr
 and block = stmt list
 and typ =
@@ -19,7 +19,7 @@ and expr =
   | Ref of span * string
   | IntLiteral of span * int
   | DoubleLiteral of span * float
-  | BoolLiteral of bool
+  | BoolLiteral of span * bool
 and param =
   | ThisParam of span * string
   | RegularParam of span * string * typ
