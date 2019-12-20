@@ -1,0 +1,5 @@
+external #tulip_glue_putc putc (ch: int) : void
+
+fn main() : void {
+  return
+}

@@ -28,7 +28,12 @@ func:
     }
   | EXTERNAL; c = option(C_NAME); name = id; s = func_sig
     {
-      Ast.ExternalFunc ($loc, c, name, s)
+      let cn =
+        match c with
+        | None -> None
+        | Some str -> Some (String.sub str 1 ((String.length str) - 1))
+      in
+      Ast.ExternalFunc ($loc, cn, name, s)
     }
 ;
 

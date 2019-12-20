@@ -1,6 +1,8 @@
 SUMOFLAGS=-O0
 
-all: return_int return_var #return_var.ll
+all: call_c return_int return_var #return_var.ll
+
+call_c: call_c.o glue.o
 
 clean:
 	rm -f return_int return_var *.o *.ll *.s
