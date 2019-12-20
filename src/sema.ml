@@ -4,15 +4,18 @@ type universe =
   {
     modules: sumo_module StringMap.t
   }
+and symbol =
+  | Module of string
+  | ModuleMember of string * string
+  | Value of Ast.span * typ
 and sumo_module =
   {
     name: string;
-    symbols: (Visibility.t * symbol) StringMap.t;
+    members: (Visibility.t * module_member) StringMap.t;
   }
-and symbol =
-  | Module
+and module_member =
   | Type of typ
-  | Value of Ast.span * typ
+  | Global of Ast.span * typ
   | UnresolvedFunc of Ast.func
   | Func of Ast.span * string * (typ list) * typ
 and typ =
