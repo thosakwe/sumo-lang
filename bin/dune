@@ -1,3 +1,7 @@
 (executable
   (name sumoc)
-  (libraries sumo llvm))
+  (libraries
+    sumo
+    llvm
+    llvm.passmgr_builder
+    unix))
