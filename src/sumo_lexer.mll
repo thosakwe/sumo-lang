@@ -1,5 +1,14 @@
 {
+  open Lexing
   open Sumo_parser
+
+  let next_line lexbuf =
+  let pos = lexbuf.lex_curr_p in
+  lexbuf.lex_curr_p <-
+    { pos with pos_bol = lexbuf.lex_curr_pos;
+               pos_lnum = pos.pos_lnum + 1;
+               pos_cnum = 1;
+    }
 }
 
 let white = [' ' '\r' '\t']+
@@ -14,7 +23,7 @@ let c_name = ['A'-'Z' 'a'-'z' '_'] ['A'-'Z' 'a'-'z' '0'-'9' '_']*
 
 rule read = parse
   | white { read lexbuf }
-  | '\n' { read lexbuf }
+  | '\n' { next_line lexbuf; read lexbuf }
   | '[' { LBRACKET }
   | ']' { RBRACKET }
   | '{' { LCURLY }
