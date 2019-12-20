@@ -21,6 +21,7 @@ and expr =
   | DoubleLiteral of span * float
   | BoolLiteral of span * bool
   | Paren of span * expr
+  | Call of span * expr * (expr list)
 and param =
   | ThisParam of span * string
   | RegularParam of span * string * typ

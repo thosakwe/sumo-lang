@@ -98,6 +98,7 @@ expr:
   | v = BOOL { Ast.BoolLiteral ($loc, v) }
   | v = id { Ast.Ref ($loc, v) }
   | LPAREN; v = expr; RPAREN { Ast.Paren ($loc, v) }
+  | t = expr; LPAREN; a = separated_list(COMMA, expr); RPAREN { Ast.Call ($loc, t, a) }
 ;
 
 id:
