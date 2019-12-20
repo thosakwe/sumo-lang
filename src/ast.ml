@@ -6,8 +6,8 @@ and func =
   | ExternalFunc of span * (string option) * string * func_signature
 and func_signature = span * (param list) * typ
 and stmt =
-  | Block of block
-  | Expr of expr
+  | Block of span * block
+  | Expr of span * expr
   | VarDecl of var_decl list
   | Return of span * (expr option)
 and var_decl = span * string * expr
@@ -20,6 +20,7 @@ and expr =
   | IntLiteral of span * int
   | DoubleLiteral of span * float
   | BoolLiteral of span * bool
+  | Paren of span * expr
 and param =
   | ThisParam of span * string
   | RegularParam of span * string * typ

@@ -1,0 +1,3 @@
+(executable
+  (name sumoc)
+  (libraries sumo llvm))

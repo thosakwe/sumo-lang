@@ -110,7 +110,7 @@ and compile_func context func =
           let func = Llvm.define_function name llvm_sign context.llvm_module in
           let entry_block = Llvm.append_block context.llvm_context "entry" func in
           let child_builder = Llvm.builder context.llvm_context in
-          let block_stmt = Ast.Block block in
+          let block_stmt = Ast.Block (span, block) in
           Llvm.position_at_end entry_block child_builder;
 
           (* Create a new child context with the given builder. *)
@@ -160,7 +160,7 @@ and compile_stmt context = function
         | Some v -> (new_ctx, Some(Llvm.build_ret v context.llvm_builder))
     end
   (* TODO: If we get a block, we need to create a new scope, and a new block. *)
-  | Ast.Block stmts -> 
+  | Ast.Block (_, stmts) -> 
     let compile_one_stmt context stmt =
       let (new_ctx, _) = compile_stmt context stmt in
       new_ctx
@@ -178,6 +178,7 @@ and compile_expr context = function
   (* TODO: If we hit an identifier, we have to look it up to see if we can access it. *)
   | Ast.Ref (_, _) ->
     (context, IntType, Llvm.const_int (Llvm.i8_type context.llvm_context) 48)
+  | Ast.Paren (_, inner) -> compile_expr context inner
 
 (** Converts a Sema type (not AST) into LLVM. *)
 and llvm_of_sema_type context = function

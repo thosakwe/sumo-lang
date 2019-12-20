@@ -1,3 +1,6 @@
 (library
   (name sumo)
   (libraries llvm))
+(menhir
+ (modules sumo_parser))
+(ocamllex sumo_lexer)
