@@ -188,9 +188,24 @@ and compile_expr context = function
     (context, BoolType, Some (Llvm.const_int (Llvm.i8_type context.llvm_context) value))
   | Ast.Paren (_, inner) -> compile_expr context inner
   (* TODO: If we hit an identifier, we have to look it up to see if we can access it. *)
-  | Ast.Ref (_, _) ->
-
-    (context, IntType,Some ( Llvm.const_int (Llvm.i8_type context.llvm_context) 48))
+  | Ast.Ref (span, name) ->
+    (* If the name doesn't exist, report an error. *)
+    if not (Scope.mem name context.scope) then
+      let error_msg = Scope.does_not_exist name in
+      let new_ctx = emit_error context span error_msg in
+      (new_ctx, VoidType, None)
+    else
+      (* Otherwise, ensure it's a value. *)
+      (* "failure" is just a helper to create the same error in different cases. *)
+      let failure =
+        let error_msg = "The name \"" ^ name ^ "\" does not resolve to a type." in
+        emit_error context span error_msg
+      in
+      match Scope.find name context.scope with
+      (* TODO: Finish this resolution logic *)
+      (* TODO: Also missing ModuleMember lookup *)
+      | ValueSymbol (_, typ) -> (context, typ, None)
+      | _ -> (failure, VoidType, None)
 
 (** Converts a Sema type (not AST) into LLVM. *)
 and llvm_of_sema_type context = function

@@ -30,5 +30,8 @@ let add name value scope =
   | RootScope map -> RootScope (helper map)
   | ChildScope (parent, map) -> ChildScope (parent, (helper map))
 
+let does_not_exist name =
+  "The name \"" ^ name ^ "\" does not exist within this context."
+
 let of_seq seq =
   RootScope (StringMap.of_seq seq)
