@@ -2,12 +2,6 @@ module StringMap = Map.Make(String)
 
 exception ScopeError of string
 
-(* type 'a t =
-   {
-    parent: ('a t) option;
-    locals: 'a StringMap.t
-   } *)
-
 type 'a t =
   | RootScope of 'a StringMap.t
   | ChildScope of ('a t) * 'a StringMap.t
@@ -28,10 +22,13 @@ let rec find name = function
 let add name value scope =
   let helper map =
     if StringMap.mem name map then
-      raise (ScopeError "?")
+      raise (ScopeError ("The name \"" ^ name ^ "\" already exists within this context."))
     else
       StringMap.add name value map
   in
   match scope with
   | RootScope map -> RootScope (helper map)
   | ChildScope (parent, map) -> ChildScope (parent, (helper map))
+
+let of_seq seq =
+  RootScope (StringMap.of_seq seq)

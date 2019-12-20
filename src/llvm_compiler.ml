@@ -4,7 +4,7 @@ type context =
   {
     module_name: string;
     universe: universe;
-    scope: Sema.symbol StringMap.t;
+    scope: Sema.symbol Scope.t;
     errors: error list;
     expected_return_type: typ;
 
@@ -41,7 +41,7 @@ let rec compile name c_unit universe =
     {
       module_name = name;
       universe = new_universe;
-      scope = StringMap.of_seq (List.to_seq [
+      scope = Scope.of_seq (List.to_seq [
           ("int", TypeSymbol IntType);
           ("double", TypeSymbol DoubleType);
           ("bool", TypeSymbol BoolType);
@@ -220,7 +220,7 @@ and sema_of_ast_typ context = function
   (* Type references are resolved by trying to look up the name in the scope.
       The resolution is only successful if a Type is found. *)
   | Ast.TypeRef (span, name) -> begin
-      if not (StringMap.mem name context.scope) then
+      if not (Scope.mem name context.scope) then
         let error_msg = "No type named \"" ^ name ^ "\" exists in this context." in
         let new_ctx = emit_error context span error_msg in
         (new_ctx, None)
@@ -231,7 +231,7 @@ and sema_of_ast_typ context = function
           let error_msg = "The name \"" ^ name ^ "\" does not resolve to a type." in
           emit_error context span error_msg
         in
-        match (StringMap.find name context.scope) with
+        match (Scope.find name context.scope) with
         | TypeSymbol typ -> (context, Some typ)
         | ModuleMember (module_name, symbol_name) -> begin
             match lookup_symbol context module_name symbol_name with
