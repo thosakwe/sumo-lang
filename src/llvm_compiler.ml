@@ -238,14 +238,14 @@ and compile_expr context = function
         | _ -> (failure, VoidType, None)
     end
   | Ast.Call (span, target, args) -> begin
-      (* TODO: Validate types, etc. *)
+      (* TODO: Validate arg types, etc. *)
       match compile_expr context target with
       | (new_ctx, _, None) ->
         let error_msg = "Evaluation of the call target produced an error." in
         let failure = emit_error new_ctx span error_msg in
         (failure, VoidType, None)
       (* TODO: Check target type to ensure it's a function. *)
-      | (new_ctx, _, Some llvm_target) ->
+      | (new_ctx, FunctionType (_, returns), Some llvm_target) ->
         (* Compile each arg into an LLVM value, but also return a new context. *)
         let llvm_of_arg (context, output_list) arg =
           match compile_expr context arg with
@@ -257,8 +257,11 @@ and compile_expr context = function
         let llvm_arg_array = Array.of_list llvm_args in
         let value = Llvm.build_call llvm_target llvm_arg_array "tmp" context.llvm_builder in
         (* TODO: Get return type from FunctionType *)
-        (* (next_ctx, returns, Some value) *)
-        (next_ctx, IntType, Some value)
+        (next_ctx, returns, Some value)
+      | (new_ctx, typ, _) ->
+        let error_msg = "Cannot call a value of type " ^ (string_of_type typ) ^ " as a function." in
+        let next_ctx = emit_error new_ctx span error_msg in
+        (next_ctx, VoidType, None)
     end
 
 (** Converts a Sema type (not AST) into LLVM. *)
