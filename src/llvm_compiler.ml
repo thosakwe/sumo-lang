@@ -278,6 +278,10 @@ and llvm_of_sema_type context = function
         (llvm_of_sema_type context inner)
       |]
     end
+  | FunctionType (params, returns) ->
+    let llvm_returns = llvm_of_sema_type context returns in
+    let llvm_params = List.map (function x -> llvm_of_sema_type context x) params in
+    Llvm.function_type llvm_returns (Array.of_list llvm_params)
 
 (** Attempts to convert an AST type into a Sema type, also returning a
     new version of the context (i.e. if any errors occur.) 
