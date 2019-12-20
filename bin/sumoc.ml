@@ -16,7 +16,7 @@ let specs = [
   ("-c", Arg.Set compile_only, "Compile only; do not link. Produces an object file.");
   ("-o", Arg.String (set out_file), "The file to be created.");
   ("-S", Arg.Set emit_asm, "Emit Assembly code.");
-  ("-m", Arg.Set emit_llvm, "Emit LLVM IR.");
+  ("-emit-llvm", Arg.Set emit_llvm, "Emit LLVM IR.");
 ]
 
 let usage = "usage: sumoc [-Sc] -o <out_file> <in_file>"
@@ -40,22 +40,21 @@ let () =
       let name = Filename.remove_extension (Filename.basename !in_file) in
       let context = Llvm_compiler.compile name c_unit Sema.empty_universe in
 
+      let output_path =
+        let ext = if !emit_llvm then ".ll" else if !emit_asm then ".s" else ".o" in
+        match !out_file with
+        | "" -> (Filename.remove_extension !in_file) ^ ext
+        | self -> self
+      in
+
       match context.errors with
       | [] -> begin
           let llvm_ir = Llvm.string_of_llmodule context.llvm_module in
           if !emit_llvm then
-            match !out_file with
-            | "" -> print_endline llvm_ir
-            | _ as fname ->
-              let chan = open_out fname in
-              output_string chan llvm_ir;
-              close_out chan
+            let chan = open_out output_path in
+            output_string chan llvm_ir;
+            close_out chan
           else
-            let output_path = 
-              match !out_file with
-              | "" -> (Filename.remove_extension !in_file) ^ ".o"
-              | self -> self
-            in
             let filetype = if !emit_asm then "asm" else "obj" in
             let llc_args = [
               "llc";
