@@ -93,16 +93,33 @@ and sema_of_ast_typ context = function
         match (StringMap.find name context.scope) with
         | ModuleMember (module_name, symbol_name) -> begin
             match lookup_symbol context module_name symbol_name with
-            | Type typ -> (context, Some typ)
+            (* If we find a type, we also need to be sure we have access to it. *)
+            | (vis, Type typ) -> begin
+                match vis with
+                (* If it's public, we have access to it. *)
+                | Visibility.Public -> (context, Some typ)
+                | _ ->
+                  (* Otherwise, we only have access if we are in the same module. *)
+                  if module_name = context.module_name then
+                    (context, Some typ)
+                  else
+                    let error_msg = "The type \"" ^ symbol_name ^ "\" cannot be accessed in this context." in
+                    let new_ctx = emit_error context span error_msg in
+                    (new_ctx, None)
+              end
             | _ -> (failure, None)
           end
         | _ -> (failure, None)
     end
 
+(* General helpers *)
+
+(** Shortcut for emitting an error, and returning a new context object. *)
 and emit_error context span error_msg =
   let error = (span, Error, error_msg) in
   {context with errors = context.errors @ [error]}
 
+(** Looks up a symbol, which we know exists.  *)
 and lookup_symbol context module_name symbol_name =
   let m = StringMap.find module_name context.universe.modules in
   StringMap.find symbol_name m.members
