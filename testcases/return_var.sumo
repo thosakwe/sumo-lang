@@ -1,4 +1,4 @@
 fn main() : int {
-  var code = 20
+  var code = 23
   return code
 }
