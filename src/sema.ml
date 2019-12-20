@@ -24,3 +24,8 @@ and typ =
   | BoolType
   | VoidType
   | OptionalType of typ
+
+let empty_universe =
+  {
+    modules = StringMap.empty
+  }
