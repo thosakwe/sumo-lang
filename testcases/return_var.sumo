@@ -1,4 +1,7 @@
 fn main() : int {
-  var code = 23
-  return code
+  var exitCode = 21
+  var ignored = 4
+  var ignored2 = 4
+  var ignored3 = 4
+  return exitCode
 }
