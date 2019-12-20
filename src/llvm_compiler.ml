@@ -112,7 +112,7 @@ and compile_func context func =
           (* If we can compile the signature, create an LLVM function, and
               compile everything into it. *)
           let func = Llvm.define_function name llvm_sign context.llvm_module in
-          let entry_block = Llvm.append_block context.llvm_context "entry" func in
+          let entry_block = Llvm.entry_block func in
           let child_builder = Llvm.builder context.llvm_context in
           let block_stmt = Ast.Block (span, block) in
           Llvm.position_at_end entry_block child_builder;
