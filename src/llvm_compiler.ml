@@ -53,11 +53,90 @@ let rec compile name c_unit universe =
     } 
   in
 
-  (* TODO: Compile declarations in turn. *)
+  (* TODO: Compile members in turn. *)
+  let compile_member context = function
+    | (name, (vis, UnresolvedFunc func)) -> begin
+        let (new_ctx, new_member, _) = compile_func context func in
+        let m = StringMap.find context.module_name new_ctx.universe.modules in
+        let new_module_members = StringMap.add name (vis, new_member) m.members in
+        let new_m = {m with members = new_module_members} in
+        let new_modules = StringMap.add name new_m new_ctx.universe.modules in
+        let new_universe = {modules = new_modules} in
+        {new_ctx with universe = new_universe}
+      end
+    | _ -> context
+  in
+  let uncompiled_members = List.of_seq (StringMap.to_seq unresolved_module.members) in
+  List.fold_left compile_member initial_context uncompiled_members
 
-  (* TODO: Use optimizers *)
-  (* TODO: Return IR instead of dumping *)
-  Llvm.dump_module initial_context.llvm_module
+(* Return the final context. *)
+
+(* TODO: Use optimizers *)
+(* TODO: Return IR instead of dumping *)
+
+and compile_decl context = function
+  | Ast.FuncDecl (_, _, func) -> compile_func context func
+
+and compile_func context func = 
+  match func with
+  (* TODO: Pass params[] to Func() *)
+  (* If we hit an external function, simply declare it. *)
+  | Ast.ExternalFunc (span, c_name_opt, name, sign) -> begin
+      (* Resolve the signature. *)
+      (* TODO: Report errors on signature resolution failure. *)
+      match compile_func_signature context sign with
+      | (new_ctx, None, _) -> (new_ctx, (UnresolvedFunc func), None)
+      | (new_ctx, Some llvm_sign, sema_returns) -> begin
+          (* Get the C Name, so we can ddclare it. *)
+          let c_name = match c_name_opt with
+            | None -> name
+            | Some v -> v
+          in
+          let value = Llvm.declare_function c_name llvm_sign context.llvm_module in
+          let resolved_func = Func (span, name, [], sema_returns) in
+          (new_ctx, resolved_func, Some value)
+        end
+
+    end
+  (* If we hit an actual function, define it. *)
+  | Ast.ConcreteFunc (span, name, sign, block) -> begin
+      (* Resolve the signature. *)
+      (* TODO: Report errors on signature resolution failure. *)
+      match compile_func_signature context sign with
+      | (new_ctx, None, _) -> (new_ctx, (UnresolvedFunc func), None)
+      | (new_ctx, Some llvm_sign, sema_returns) -> begin
+          (* If we can compile the signature, create an LLVM function, and
+              compile everything into it. *)
+          let func = Llvm.define_function name llvm_sign context.llvm_module in
+          let entry_block = Llvm.append_block context.llvm_context "entry" func in
+          let child_builder = Llvm.builder context.llvm_context in
+          let block_stmt = Ast.Block block in
+          Llvm.position_at_end entry_block child_builder;
+
+          (* Create a new child context with the given builder. *)
+          let child_context = {
+            new_ctx with 
+            llvm_builder = child_builder;
+            expected_return_type = sema_returns;
+          } in
+
+          let (result_ctx, result) = compile_stmt child_context block_stmt in
+          let resolved_func = Func (span, name, [], sema_returns) in
+          (result_ctx, resolved_func, result)
+        end
+    end
+
+and compile_func_signature context sign =
+  (* TODO: Compile params *)
+  let (_, _, ast_returns) = sign in
+  match sema_of_ast_typ context ast_returns with
+  | (new_ctx, None) -> (new_ctx, None, VoidType)
+  | (new_ctx, (Some returns)) -> begin
+      let llvm_returns = llvm_of_sema_type context.llvm_context returns in
+      (* TODO: Put params in this array *)
+      let llvm_sig = Llvm.function_type llvm_returns [| |] in
+      (new_ctx, Some llvm_sig, returns)
+    end
 
 and compile_stmt context = function
   (* If we hit a return, make sure that we are returning the correct type. *)
@@ -80,6 +159,14 @@ and compile_stmt context = function
         | None -> (new_ctx, Some(Llvm.build_ret_void context.llvm_builder))
         | Some v -> (new_ctx, Some(Llvm.build_ret v context.llvm_builder))
     end
+  (* TODO: If we get a block, we need to create a new scope, and a new block. *)
+  | Ast.Block stmts -> 
+    let compile_one_stmt context stmt =
+      let (new_ctx, _) = compile_stmt context stmt in
+      new_ctx
+    in
+    let new_ctx = List.fold_left compile_one_stmt context stmts in
+    (new_ctx, None)
   | _ -> (context, None)
 
 and compile_expr context = function
