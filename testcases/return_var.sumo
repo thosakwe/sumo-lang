@@ -1,0 +1,4 @@
+fn main() : void {
+  var code = 20
+  return
+}

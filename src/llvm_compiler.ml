@@ -11,7 +11,7 @@ type context =
     llvm_builder: Llvm.llbuilder;
     llvm_context : Llvm.llcontext;
     llvm_module: Llvm.llmodule;
-    llvm_scope: Llvm.llvalue StringMap.t;
+    llvm_scope: Llvm.llvalue Scope.t;
   }
 and error_level =
   | Error
@@ -36,7 +36,7 @@ let rec compile name c_unit universe =
     new context values. Once all resolution is done, we can then emit the LLVM code. *)
   let llvm_context = Llvm.global_context () in
   let llvm_builder = Llvm.builder llvm_context in
-  let llvm_scope = StringMap.empty in
+  let llvm_scope = Scope.empty in
   let initial_context =
     {
       module_name = name;
@@ -178,7 +178,31 @@ and compile_stmt context = function
     in
     let new_ctx = List.fold_left compile_one_stmt context stmts in
     (new_ctx, None)
-  | _ -> (context, None)
+  (* If we reach variable declarations, then each one will create a new context. *)
+  | Ast.VarDecl decls ->
+    let compile_var_decl context (span, _, name, expr) =
+      (* Compile the expression. If resolution fails, emit an error.
+          Otherwise, inject the value in the scope. *)
+      let (new_ctx, typ, value_opt) = compile_expr context expr in
+      match value_opt with
+      | None -> 
+        let error_msg = "Compiling this variable declaration produced an error." in
+        emit_error new_ctx span error_msg
+      | Some value -> begin
+          (* TODO: SSA variables *)
+          let sym = ValueSymbol (span, typ) in
+          let new_llvm_scope = Scope.add name value context.llvm_scope in
+          let new_scope = Scope.add name sym context.scope in
+          let llvm_type = Llvm.type_of value in
+          (* Emit the LLVM variable, and return the new context. *)
+          let variable = Llvm.build_alloca llvm_type name new_ctx.llvm_builder in
+          let _ = Llvm.build_store value variable new_ctx.llvm_builder in
+          { new_ctx with scope = new_scope; llvm_scope = new_llvm_scope }
+        end
+    in
+    let new_ctx = List.fold_left compile_var_decl context decls in
+    (* TODO: Should we really return None here??? *)
+    (new_ctx, None)
 
 and compile_expr context = function
   | Ast.IntLiteral (_, v) ->
