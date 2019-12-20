@@ -30,3 +30,10 @@ let empty_universe =
   {
     modules = StringMap.empty
   }
+
+let rec string_of_type = function
+  | IntType -> "int"
+  | DoubleType -> "double"
+  | BoolType -> "bool"
+  | VoidType -> "void"
+  | OptionalType inner -> (string_of_type inner) ^ "?"

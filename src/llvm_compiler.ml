@@ -44,6 +44,7 @@ let rec compile name c_unit universe =
       scope = StringMap.of_seq (List.to_seq [
           ("int", TypeSymbol IntType);
           ("double", TypeSymbol DoubleType);
+          ("bool", TypeSymbol BoolType);
           ("void", TypeSymbol VoidType)
         ]);
       errors = [];
@@ -155,7 +156,9 @@ and compile_stmt context = function
 
       if not (can_cast_type actual_return_type new_ctx.expected_return_type) then
         (* TODO: More descriptive error *)
-        let error_msg = "Cast failure" in
+        let left = string_of_type actual_return_type in
+        let right = string_of_type new_ctx.expected_return_type in
+        let error_msg = "Cannot return " ^ left ^ " from a function declared to return " ^ right ^ "." in
         ((emit_error new_ctx span error_msg), None)
       else
         match value with
