@@ -164,6 +164,10 @@ and compile_stmt context = function
         | None -> (new_ctx, Some(Llvm.build_ret_void context.llvm_builder))
         | Some v -> (new_ctx, Some(Llvm.build_ret v context.llvm_builder))
     end
+  (* If we get an expression, just compile it. *)
+  | Ast.Expr (_, v) ->
+    let (new_ctx, _, value) = compile_expr context v in
+    (new_ctx, Some value)
   (* TODO: If we get a block, we need to create a new scope, and a new block. *)
   | Ast.Block (_, stmts) -> 
     let compile_one_stmt context stmt =
@@ -180,10 +184,10 @@ and compile_expr context = function
   | Ast.BoolLiteral (_, v) ->
     let value = if v then 1 else 0 in
     (context, BoolType, Llvm.const_int (Llvm.i8_type context.llvm_context) value)
+  | Ast.Paren (_, inner) -> compile_expr context inner
   (* TODO: If we hit an identifier, we have to look it up to see if we can access it. *)
   | Ast.Ref (_, _) ->
     (context, IntType, Llvm.const_int (Llvm.i8_type context.llvm_context) 48)
-  | Ast.Paren (_, inner) -> compile_expr context inner
 
 (** Converts a Sema type (not AST) into LLVM. *)
 and llvm_of_sema_type context = function
@@ -253,7 +257,9 @@ and sema_of_ast_typ context = function
 (** Checks if a can be casted to b. *)
 and can_cast_type a b =
   (* TODO: Check classes for inheritance *)
+  (* TODO: Support casts from primitive types *)
   match (a, b) with
+  (* | (IntType, DoubleType) -> true *)
   | _ -> a == b
 
 (* General helpers *)

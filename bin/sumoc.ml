@@ -87,7 +87,8 @@ let () =
             print_string ": ";
             print_endline msg
           in
-          List.iter dump_error errors
+          List.iter dump_error errors;
+          ignore (exit 1)
         end
   with
   | Sys_error msg ->
