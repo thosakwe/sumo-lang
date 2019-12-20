@@ -191,12 +191,12 @@ and compile_stmt context = function
       | Some value -> begin
           (* TODO: SSA variables *)
           let sym = ValueSymbol (span, typ) in
-          let new_llvm_scope = Scope.add name value context.llvm_scope in
-          let new_scope = Scope.add name sym context.scope in
-          let llvm_type = Llvm.type_of value in
           (* Emit the LLVM variable, and return the new context. *)
+          let llvm_type = Llvm.type_of value in
           let variable = Llvm.build_alloca llvm_type name new_ctx.llvm_builder in
           let _ = Llvm.build_store value variable new_ctx.llvm_builder in
+          let new_llvm_scope = Scope.add name variable context.llvm_scope in
+          let new_scope = Scope.add name sym context.scope in
           { new_ctx with scope = new_scope; llvm_scope = new_llvm_scope }
         end
     in
@@ -230,7 +230,11 @@ and compile_expr context = function
       match Scope.find name context.scope with
       (* TODO: Finish this resolution logic *)
       (* TODO: Also missing ModuleMember lookup *)
-      | ValueSymbol (_, typ) -> (context, typ, None)
+      | ValueSymbol (_, typ) ->
+        (* Fetch the LLVM value. *)
+        let llvm_value = Scope.find name context.llvm_scope in
+        let value = Llvm.build_load llvm_value name context.llvm_builder in
+        (context, typ, Some value)
       | _ -> (failure, VoidType, None)
 
 (** Converts a Sema type (not AST) into LLVM. *)

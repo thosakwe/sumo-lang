@@ -1,4 +1,4 @@
-fn main() : void {
+fn main() : int {
   var code = 20
-  return
+  return code
 }

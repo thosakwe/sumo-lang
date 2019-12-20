@@ -92,9 +92,11 @@ let () =
             match status with
             | Unix.WEXITED 0 -> ()
             | Unix.WEXITED code ->
-              prerr_endline (llc_invocation ^ "` terminated with error code " ^ (string_of_int code) ^ ".")
+              prerr_endline (llc_invocation ^ "` terminated with error code " ^ (string_of_int code) ^ ".");
+              ignore (exit code)
             | _ ->
-              prerr_endline ("Running `" ^ llc_invocation ^ "` resulted in an error.")
+              prerr_endline ("Running `" ^ llc_invocation ^ "` resulted in an error.");
+              ignore (exit 1)
         end
       | _ as errors -> begin
           let dump_error e =
