@@ -36,13 +36,16 @@ let rec compile name c_unit universe =
     new context values. Once all resolution is done, we can then emit the LLVM code. *)
   let llvm_context = Llvm.global_context () in
   let llvm_builder = Llvm.builder llvm_context in
-  let scope = StringMap.empty in
   let llvm_scope = StringMap.empty in
   let initial_context =
     {
       module_name = name;
       universe = new_universe;
-      scope;
+      scope = StringMap.of_seq (List.to_seq [
+          ("int", TypeSymbol IntType);
+          ("double", TypeSymbol DoubleType);
+          ("void", TypeSymbol VoidType)
+        ]);
       errors = [];
       expected_return_type = VoidType;
 
@@ -223,6 +226,7 @@ and sema_of_ast_typ context = function
           emit_error context span error_msg
         in
         match (StringMap.find name context.scope) with
+        | TypeSymbol typ -> (context, Some typ)
         | ModuleMember (module_name, symbol_name) -> begin
             match lookup_symbol context module_name symbol_name with
             (* If we find a type, we also need to be sure we have access to it. *)
@@ -261,3 +265,7 @@ and emit_error context span error_msg =
 and lookup_symbol context module_name symbol_name =
   let m = StringMap.find module_name context.universe.modules in
   StringMap.find symbol_name m.members
+
+and string_of_error_level = function
+  | Error -> "error"
+  | Warning -> "warning"

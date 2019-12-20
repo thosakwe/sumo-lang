@@ -7,7 +7,8 @@ type universe =
 and symbol =
   | Module of string
   | ModuleMember of string * string
-  | Value of Ast.span * typ
+  | ValueSymbol of Ast.span * typ
+  | TypeSymbol of typ
 and sumo_module =
   {
     name: string;
