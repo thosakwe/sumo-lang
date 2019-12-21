@@ -177,7 +177,7 @@ and compile_stmt (context, out_list, expected_return) = function
 
       (* If we can't cast, report an error. *)
       (* TODO: Support ad-hoc casts *)
-      if (can_cast_type actual_return_type expected_return) then
+      if not (can_cast_type actual_return_type expected_return) then
         let left = string_of_type actual_return_type in
         let right = string_of_type expected_return in
         let error_msg = "Cannot return " ^ left ^ " from a function declared to return " ^ right ^ "." in
