@@ -52,11 +52,11 @@ and load_ast_into_universe universe path c_unit =
                 | None -> name
                 | Some cn -> cn
               in
-              let symbol = FuncSymbol (c_name, params, returns, self) in
+              let symbol = FuncSymbol (true, c_name, params, returns, self) in
               (name, (vis, symbol))
             | Ast.ConcreteFunc (_, name, _, _) ->
               let qualified = Sema.qualify_function_name path name in
-              let symbol = FuncSymbol (qualified, params, returns, self) in
+              let symbol = FuncSymbol (false, qualified, params, returns, self) in
               (name, (vis, symbol))
           end
       in
@@ -260,7 +260,7 @@ and compile_expr context = function
           else
             match Scope.find name context.scope with
             (* If we find a function, then verify the number of args. *)
-            | FuncSymbol (func_name, params, returns, _) -> begin
+            | FuncSymbol (_, func_name, params, returns, _) -> begin
                 if (List.length args) != (List.length params) then 
                   let error_msg =
                     "The function \"" ^ func_name ^ "\" expects "

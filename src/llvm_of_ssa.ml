@@ -9,9 +9,9 @@ type context =
     scope: Llvm.llvalue Scope.t;
   }
 
-let rec compile_universe module_name errors universe =
+let rec compile_universe module_path errors universe =
   let llvm_context = Llvm.create_context () in
-  let llvm_module = Llvm.create_module llvm_context module_name in
+  let llvm_module = Llvm.create_module llvm_context module_path in
 
   (* Create an initial scope containing forward declarations
    * of all known functions. *)
@@ -24,7 +24,7 @@ let rec compile_universe module_name errors universe =
    * 5. Turn these pairs into a map. *)
   let map_of_all_symbols =
     let list_of_modules = List.of_seq (StringMap.to_seq universe.modules) in
-    let list_of_symbols (_, m_ref) =
+    let list_of_symbols (path, m_ref) =
       let pairs = List.of_seq (StringMap.to_seq (!m_ref).symbols) in
       let llvm_of_pair out_list (name, (_, sym)) =
         match sym with
@@ -33,10 +33,18 @@ let rec compile_universe module_name errors universe =
           let llvm_type = compile_type llvm_context typ in
           let value = Llvm.declare_global llvm_type qualified_name llvm_module in
           out_list @ [(name, value)]
-        | FuncSymbol (llvm_name, params, returns, _) ->
-          let llvm_function_type = compile_function_signature llvm_context params returns in
-          let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
-          out_list @ [(name, value)]
+        | FuncSymbol (ext, llvm_name, params, returns, _) ->
+          (* If this is the module we are compiling, then don't forward-declare anything
+           * because names can only be defined once. Otherwise you get main.1, foo.1, etc.
+           *
+           * The only exception is "external" functions. *)
+          if (module_path == path) && (not ext) then
+            out_list
+          else
+
+            let llvm_function_type = compile_function_signature llvm_context params returns in
+            let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
+            out_list @ [(name, value)]
       in
       List.fold_left llvm_of_pair [] pairs
     in
