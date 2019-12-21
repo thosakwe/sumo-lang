@@ -53,8 +53,8 @@ let () =
       (* Compile it. *)
       let name = Filename.remove_extension (Filename.basename !in_file) in
 
-      (* Dump the work-in-process SSA generated. *)
-      Ssa_of_ast.compile_single_ast !in_file c_unit;
+      (* Compile to LLVM, by chaining sema and codegen. *)
+      Llvm_of_ast.compile_single_ast !in_file c_unit;
 
       let context = Llvm_compiler.compile name c_unit Sema.empty_universe in
 

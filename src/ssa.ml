@@ -52,8 +52,8 @@ let type_of_value = function
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
   let param_string = String.concat ", " (List.map string_of_type params) in
-       "fn " ^ name ^ "(" ^ param_string ^ "): " ^ (string_of_type returns)
-       ^ " = \n" ^ (string_of_block instrs)
+  "fn " ^ name ^ "(" ^ param_string ^ "): " ^ (string_of_type returns)
+  ^ " = \n" ^ (string_of_block instrs)
 and string_of_symbol = function
   | FuncSymbol (name, params, returns, _) ->
     (* let param_string = String.concat ", " (List.map string_of_type params) in
@@ -63,9 +63,9 @@ and string_of_symbol = function
     "fn " ^ name ^ "(" ^ param_string ^ "): " ^ (string_of_type returns)
   | TypeSymbol typ -> "type " ^ (string_of_type typ)
   | VarSymbol (name, typ) -> name ^ ": " ^ (string_of_type typ)
-  (* | ImportedSymbol (m, name) ->
-    let {path; _} = !m in
-    path ^ "::" ^ name *)
+(* | ImportedSymbol (m, name) ->
+   let {path; _} = !m in
+   path ^ "::" ^ name *)
 and string_of_block block =
   let indented_string_of_instr instr =
     "  " ^ (string_of_instr instr)
@@ -94,3 +94,18 @@ and string_of_value = function
     (* let target_string = string_of_value target in *)
     let arg_string = String.concat ", " (List.map string_of_value args) in
     target_string ^ "(" ^ arg_string ^ ")"
+
+let dump_module _ module_ref =
+  let m = !module_ref in
+  let dump_symbol name (_, sym) =
+    print_endline (name ^ ": " ^ (string_of_symbol sym))
+  in
+  let dump_func f =
+    print_endline (string_of_func f)
+  in
+  print_endline ("Module \"" ^ m.path ^ "\":");
+  StringMap.iter dump_symbol m.symbols;
+  List.iter dump_func m.compiled_functions
+
+let dump_universe universe =
+  StringMap.iter dump_module universe.modules

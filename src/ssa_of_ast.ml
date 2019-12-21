@@ -10,21 +10,8 @@ type context =
 
 let rec compile_single_ast path c_unit =
   let (context, universe) = load_ast_into_universe (Ssa.default_universe) path c_unit in
-  let dump_module _ module_ref =
-    let m = !module_ref in
-    let dump_symbol name (_, sym) =
-      print_endline (name ^ ": " ^ (string_of_symbol sym))
-    in
-    let dump_func f =
-      print_endline (string_of_func f)
-    in
-    print_endline ("Module \"" ^ m.path ^ "\":");
-    StringMap.iter dump_symbol m.symbols;
-    List.iter dump_func m.compiled_functions
-  in
-  StringMap.iter dump_module universe.modules;
-  List.iter (function x -> prerr_endline (Sema.string_of_error x)) context.errors;
-  ()
+  (* List.iter (function x -> prerr_endline (Sema.string_of_error x)) context.errors; *)
+  (universe, context)
 
 and load_ast_into_universe universe path c_unit =
   (* Before we actually compile anything, forward-declare all functions
