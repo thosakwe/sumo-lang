@@ -1,4 +1,4 @@
-external #tulip_glue_putc putc (ch: int) : void
+external #sumo_glue_putc putc (ch: int) : void
 
 fn main() : void {
   putc(72)

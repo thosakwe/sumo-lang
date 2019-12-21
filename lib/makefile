@@ -6,5 +6,4 @@ clean:
 libsumo.a: stdio.o stdio_glue.o
 	$(AR) rcs $@ $^
 
-%.o: %.sumo
-	$(SUMOC) $(SUMOFLAGS) -o $@ $<
+include ../config.mak
