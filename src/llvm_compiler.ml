@@ -77,9 +77,12 @@ let rec compile name c_unit universe =
     let (new_ctx, _) = compile_member context member in
     new_ctx
   in
-  List.fold_left compile_one_member initial_context uncompiled_members
+  let final_ctx = List.fold_left compile_one_member initial_context uncompiled_members in
 
-(* Return the final context. *)
+  (* Return the final context, after validation.. *)
+  (* Llvm.dump_module final_ctx.llvm_module; *)
+  (* Llvm_analysis.assert_valid_module final_ctx.llvm_module; *)
+  final_ctx
 
 (* TODO: Handle duplicate symbols. *)
 and compile_member context = function
@@ -286,7 +289,10 @@ and compile_expr context = function
         | ValueSymbol (_, typ) ->
           (* Fetch the LLVM value. *)
           let llvm_value = Scope.find name context.llvm_scope in
-          let value = Llvm.build_load llvm_value name context.llvm_builder in
+          let value = match typ with
+            | FunctionType _ ->  llvm_value
+            | _ -> Llvm.build_load llvm_value name context.llvm_builder
+          in
           (context, typ, Some value)
         (* If we find a module member, determine if we have access, and if it's a value. *)
         | ModuleMember (module_name, symbol_name) -> begin
@@ -303,8 +309,6 @@ and compile_expr context = function
               (new_ctx, VoidType, None)
             in
             (* TODO: Qualify names to fetch globals/functions *)
-            (* TODO: FFFFF *)
-            (* match member with *)
             match compile_member context (symbol_name, (vis, member)) with
             | (new_ctx, Global (_, typ)) ->
               if not can_access then
@@ -354,8 +358,8 @@ and compile_expr context = function
           (* If the function returns void, return no value. *)
           match returns with
           | VoidType -> 
-            let _ = Llvm.build_call llvm_target llvm_arg_array "" context.llvm_builder in
-            (next_ctx, returns, None)
+            let value = Llvm.build_call llvm_target llvm_arg_array "" context.llvm_builder in
+            (next_ctx, returns, Some value)
           | _ -> 
             let value = Llvm.build_call llvm_target llvm_arg_array "tmp" context.llvm_builder in
             (* TODO: Get return type from FunctionType *)

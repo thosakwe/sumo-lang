@@ -1,6 +1,7 @@
 external #tulip_glue_putc putc (ch: int) : void
 
 fn main() : void {
-  putc(2)
+  putc(72)
+  putc(101)
   return
 }
