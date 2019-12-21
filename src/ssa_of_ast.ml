@@ -221,7 +221,16 @@ and compile_stmt (context, out_list, expected_return) = function
     in
     let (new_ctx, new_out_list) = List.fold_left compile_var_decl (context, out_list) decls in
     (new_ctx, new_out_list, expected_return)
-  | _ -> (context, out_list, expected_return)
+  (* TODO: If we get a block, we need to create a new scope, AND a new block. *)
+  | Ast.Block (_, stmts) -> 
+    let new_scope = Scope.ChildScope (context.scope, StringMap.empty) in
+    let child_context = { context with scope = new_scope } in
+    let compile_one_stmt (context, out_list) stmt =
+      let (new_ctx, new_out_list, _) = compile_stmt (context, out_list, expected_return) stmt in
+      (new_ctx, new_out_list)
+    in
+    let (new_ctx, new_out_list) = List.fold_left compile_one_stmt (child_context, out_list) stmts in
+    (new_ctx, new_out_list, expected_return)
 
 and compile_expr context = function
   (* TODO: Other exprs *)
