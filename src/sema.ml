@@ -37,7 +37,11 @@ let empty_universe =
   }
 
 let qualify names =
-  String.concat "_" names
+  let normalize name =
+    let rgx = Str.regexp "[^A-Za-z0-9_]+" in
+    Str.global_replace rgx "_" name
+  in
+  String.concat "_" (List.map normalize names)
 
 let rec string_of_type = function
   | IntType -> "int"
