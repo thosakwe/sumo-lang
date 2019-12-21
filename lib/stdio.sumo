@@ -1,0 +1,1 @@
+external #sumo_glue_putc putc (ch: int) : void

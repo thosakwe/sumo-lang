@@ -8,7 +8,7 @@ clean:
 	rm -f call_c return_int return_var *.o *.ll *.s
 
 %.o: %.sumo
-	dune exec ../bin/sumoc.exe -- $(SUMOFLAGS) -o $@ $<
+	$(SUMOC) $(SUMOFLAGS) -o $@ $<
 
 %.ll: %.sumo
-	dune exec ../bin/sumoc.exe -- $(SUMOFLAGS) -emit-llvm -o $@ $<
+	$(SUMOC) $(SUMOFLAGS) -emit-llvm -o $@ $<
