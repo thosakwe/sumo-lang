@@ -235,6 +235,9 @@ and compile_stmt (context, out_list, expected_return) = function
 and compile_expr context = function
   (* TODO: Other exprs *)
   | Ast.IntLiteral (_, v) -> (context, IntType, Some (IntLiteral v))
+  | Ast.DoubleLiteral (_, v) -> (context, DoubleType, Some (DoubleLiteral v))
+  | Ast.BoolLiteral (_, v) -> (context, BoolType, Some (BoolLiteral v))
+  | Ast.Paren (_, inner) -> compile_expr context inner
   | _ -> (context, UnknownType, None)
 
 and compile_type context = function
