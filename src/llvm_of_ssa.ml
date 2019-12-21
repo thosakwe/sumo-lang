@@ -75,7 +75,10 @@ and compile_function context (name, params, returns, instrs) =
   let func = Llvm.define_function name llvm_function_type context.llvm_module in
   let new_scope_map = StringMap.add name func StringMap.empty in
   let new_scope = Scope.ChildScope (context.scope, new_scope_map) in
-  let new_context = { context with scope = new_scope } in
+  let entry_block = Llvm.entry_block func in
+  let new_builder = Llvm.builder context.llvm_context in
+  Llvm.position_at_end entry_block new_builder;
+  let new_context = { context with scope = new_scope; builder = new_builder } in
   let final_ctx =
     let compile_one_instr context (span, instr) =
       let (new_ctx, _) = compile_instr context span instr in
@@ -115,13 +118,17 @@ and compile_value context span = function
     else
       let target = Scope.find name context.scope in
       (context, Llvm.build_load target name context.builder)
-  | FunctionCall (_, name, args) ->
-    if not (Scope.mem name context.scope) then
+  | FunctionCall (returns, name, args) ->
+    match Llvm.lookup_function name context.llvm_module with
+    | None ->
       let error_msg = Scope.does_not_exist name in
       let new_ctx = emit_error context span error_msg in
+      let dump_pair name _ =
+        print_endline name
+      in
+      Scope.iter dump_pair context.scope;
       (new_ctx, Llvm.const_null (Llvm.i64_type context.llvm_context))
-    else
-      let target = Scope.find name context.scope in
+    | Some target ->
       let (new_ctx, llvm_args) =
         let compile_arg (context, out_list) arg =
           let (new_ctx, value) = compile_value context span arg in
@@ -129,7 +136,13 @@ and compile_value context span = function
         in
         List.fold_left compile_arg (context, []) args
       in
-      (new_ctx, Llvm.build_call target (Array.of_list llvm_args) name new_ctx.builder)
+      (* If the function returns void, return no value. *)
+      let return_name =
+        match returns with
+        | VoidType -> ""
+        | _ -> "tmp"
+      in
+      (new_ctx, Llvm.build_call target (Array.of_list llvm_args) return_name new_ctx.builder)
 
 and compile_function_signature llvm_context params returns =
   let llvm_params =
