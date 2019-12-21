@@ -2,23 +2,10 @@ open Ssa
 
 type context =
   {
+    this_module: string;
     errors: Sema.error list;
     scope: symbol Scope.t;
     universe: universe;
-  }
-
-let default_context =
-  let root_scope = Scope.of_seq (List.to_seq [
-      ("int", TypeSymbol IntType);
-      ("double", TypeSymbol DoubleType);
-      ("bool", TypeSymbol BoolType);
-      ("void", TypeSymbol VoidType)
-    ])
-  in
-  {
-    errors = [];
-    scope = root_scope;
-    universe = default_universe
   }
 
 let rec compile_single_ast path c_unit =
@@ -41,6 +28,21 @@ and load_ast_into_universe universe path c_unit =
   (* TODO: Imports *)
   (* TODO: Forward-declare all types/records/structs before functions *)
 
+  let default_context =
+    let root_scope = Scope.of_seq (List.to_seq [
+        ("int", TypeSymbol IntType);
+        ("double", TypeSymbol DoubleType);
+        ("bool", TypeSymbol BoolType);
+        ("void", TypeSymbol VoidType)
+      ])
+    in
+    {
+      this_module = path;
+      errors = [];
+      scope = root_scope;
+      universe = default_universe
+    }
+  in
   let ref_context = ref { default_context with universe = universe } in
 
   let symbols =
@@ -111,7 +113,27 @@ and compile_function_signature context (_, params, returns) =
 
 and compile_function (context, out_list) = function
   | Ast.ExternalFunc _ -> (context, out_list)
-  | Ast.ConcreteFunc _ -> (context, out_list)
+  | Ast.ConcreteFunc (span, name, fsig, block) ->
+    compile_concrete_function context out_list (span, name, fsig, block)
+
+and compile_concrete_function context out_list (span, name, fsig, _) =
+  (* If this module is not in the universe, don't compile it. *)
+  if not (StringMap.mem context.this_module context.universe.modules) then
+    let error_msg = "No module exists at path \"" ^ context.this_module ^ "\"." in
+    let new_ctx = emit_error context span error_msg in
+    (new_ctx, out_list)
+  else
+    (* Figure out which module we are in, so we can then work out the qualified name. *)
+    let this_module = StringMap.find context.this_module context.universe.modules in
+    let {path; _} = !this_module in
+    let qualified = Sema.qualify [path; name] in
+
+    (* Compile the function signature, so we can get param+return types *)
+    let (ctx_after_sig, params, returns) = compile_function_signature context fsig in
+
+    (* Finally, just create the function object. *)
+    let func = (qualified, params, returns, []) in
+    (ctx_after_sig, out_list @ [func])
 
 and compile_type context = function
   | Ast.TypeRef (span, name) -> begin
