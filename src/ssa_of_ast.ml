@@ -68,7 +68,7 @@ and load_ast_into_universe universe path c_unit =
               let symbol = FuncSymbol (c_name, params, returns, self) in
               (name, (vis, symbol))
             | Ast.ConcreteFunc (_, name, _, _) ->
-              let qualified = Sema.qualify [path; name] in
+              let qualified = Sema.qualify_function_name path name in
               let symbol = FuncSymbol (qualified, params, returns, self) in
               (name, (vis, symbol))
           end
@@ -131,7 +131,7 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
     (* Figure out which module we are in, so we can then work out the qualified name. *)
     let this_module = StringMap.find context.this_module context.universe.modules in
     let {path; _} = !this_module in
-    let qualified = Sema.qualify [path; name] in
+    let qualified = Sema.qualify_function_name path name  in
 
     (* Compile the function signature, so we can get param+return types *)
     let (ctx_after_sig, params, returns) = compile_function_signature context fsig in

@@ -43,6 +43,10 @@ let qualify names =
   in
   String.concat "_" (List.map normalize names)
 
+let qualify_function_name module_path = function
+  | "main" -> "main"
+  | _ as name -> qualify [module_path; name]
+
 let rec string_of_type = function
   | IntType -> "int"
   | DoubleType -> "double"
