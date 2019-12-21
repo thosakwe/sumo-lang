@@ -24,7 +24,7 @@ and typ =
   | DoubleType
   | BoolType
   | VoidType
-  | OptionalType of typ
+  (* | OptionalType of typ *)
   | FunctionType of (typ list) * typ
 and error_level =
   | Error
@@ -36,12 +36,15 @@ let empty_universe =
     modules = StringMap.empty
   }
 
+let qualify names =
+  String.concat "_" names
+
 let rec string_of_type = function
   | IntType -> "int"
   | DoubleType -> "double"
   | BoolType -> "bool"
   | VoidType -> "void"
-  | OptionalType inner -> (string_of_type inner) ^ "?"
+  (* | OptionalType inner -> (string_of_type inner) ^ "?" *)
   | FunctionType (params, returns) ->
     let param_str = String.concat ", " (List.map string_of_type params) in
     "(" ^ param_str ^ ") -> " ^ (string_of_type returns)

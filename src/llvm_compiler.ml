@@ -373,14 +373,14 @@ and llvm_of_sema_type context = function
   | DoubleType -> Llvm.double_type context
   | BoolType -> Llvm.i8_type context
   | VoidType -> Llvm.void_type context
-  | OptionalType inner -> begin
+  (* | OptionalType inner -> begin
       (* Optional scalars manifest as a struct of { exists: bool; value: T } *)
       (* TODO: optional types for pass-by-reference *)
       Llvm.struct_type context [| 
         Llvm.i8_type context;
         (llvm_of_sema_type context inner)
       |]
-    end
+    end *)
   | FunctionType (params, returns) ->
     let llvm_returns = llvm_of_sema_type context returns in
     let llvm_params = List.map (function x -> llvm_of_sema_type context x) params in

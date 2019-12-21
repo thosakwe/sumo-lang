@@ -14,7 +14,7 @@ and var_decl = span * bool * string * expr
 and block = stmt list
 and typ =
   | TypeRef of span * string
-  | OptionalType of span * typ
+  (* | OptionalType of span * typ *)
 and expr =
   | Ref of span * string
   | IntLiteral of span * int
@@ -28,5 +28,9 @@ and param =
 and span = Lexing.position * Lexing.position
 
 let name_of_func = function
-  | ConcreteFunc (_, name, _, _) ->name
+  | ConcreteFunc (_, name, _, _) -> name
   | ExternalFunc(_, _, name, _) -> name
+
+let signature_of_func = function
+  | ConcreteFunc (_, _, s, _) -> s
+  | ExternalFunc (_, _, _, s) -> s
