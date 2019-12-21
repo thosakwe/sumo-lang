@@ -1,4 +1,4 @@
-SUMOFLAGS=-O0
+SUMOFLAGS?=-O0
 
 all: call_c return_int return_var #return_var.ll
 
