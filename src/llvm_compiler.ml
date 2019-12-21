@@ -94,7 +94,7 @@ and compile_member context = function
             match new_member with
             | Func (span, _, params, returns) ->
               let func_type = FunctionType (params, returns) in
-              Scope.add name (ValueSymbol (span, func_type)) new_ctx.scope
+              Scope.replace name (ValueSymbol (span, func_type)) new_ctx.scope
             | _ -> new_ctx.scope
           in
           let new_llvm_scope = Scope.add name llvm_func new_ctx.llvm_scope in
@@ -260,7 +260,7 @@ and compile_expr context = function
         (* Otherwise, ensure it's a value. *)
         (* "failure" is just a helper to create the same error in different cases. *)
         let failure =
-          let error_msg = "The name \"" ^ name ^ "\" does not resolve to a type." in
+          let error_msg = "The name \"" ^ name ^ "\" does not resolve to a value." in
           emit_error context span error_msg
         in
         match Scope.find name context.scope with

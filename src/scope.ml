@@ -19,6 +19,13 @@ let rec find name = function
     else
       find name parent
 
+let replace name value scope =
+  let helper map = StringMap.add name value map
+  in
+  match scope with
+  | RootScope map -> RootScope (helper map)
+  | ChildScope (parent, map) -> ChildScope (parent, (helper map))
+
 let add name value scope =
   let helper map =
     if StringMap.mem name map then
