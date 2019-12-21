@@ -41,3 +41,9 @@ let rec string_of_type = function
   | FunctionType (params, returns) ->
     let param_str = String.concat ", " (List.map string_of_type params) in
     "(" ^ param_str ^ ") -> " ^ (string_of_type returns)
+
+let string_of_symbol = function
+  | Module name -> "module " ^ name
+  | ModuleMember (m, s) -> m ^ "." ^ s
+  | ValueSymbol (_, typ) -> string_of_type typ
+  | TypeSymbol typ -> "type " ^ string_of_type typ

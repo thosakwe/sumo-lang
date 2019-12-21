@@ -23,6 +23,7 @@ and error = Ast.span * error_level * string
 let rec compile name c_unit universe =
   (* First, create a module full of "unresolved" members. *)
   (* Then, add that module to the universe. *)
+  (* TODO: Add unresolved modules to scope, for lazy evaluation. *)
   let unresolved_of_decl = function
     | Ast.FuncDecl (_, vis, func) -> (Ast.name_of_func func, (vis, UnresolvedFunc func))
   in
@@ -58,15 +59,33 @@ let rec compile name c_unit universe =
   in
 
   (* TODO: Compile members in turn. *)
+  (* TODO: Handle duplicate symbols. *)
   let compile_member context = function
+    (* If we find an unresolved function, compile it, and add it to the scope. *)
     | (name, (vis, UnresolvedFunc func)) -> begin
-        let (new_ctx, new_member, _) = compile_func context func in
-        let m = StringMap.find context.module_name new_ctx.universe.modules in
-        let new_module_members = StringMap.add name (vis, new_member) m.members in
-        let new_m = {m with members = new_module_members} in
-        let new_modules = StringMap.add name new_m new_ctx.universe.modules in
-        let new_universe = {modules = new_modules} in
-        {new_ctx with universe = new_universe}
+        let (new_ctx, new_member, llvm_func_opt) = compile_func context func in
+        match llvm_func_opt with
+        | None -> new_ctx
+        | Some llvm_func -> begin
+            let m = StringMap.find context.module_name new_ctx.universe.modules in
+            let new_module_members = StringMap.add name (vis, new_member) m.members in
+            let new_m = {m with members = new_module_members} in
+            let new_modules = StringMap.add name new_m new_ctx.universe.modules in
+            let new_universe = {modules = new_modules} in
+            let new_scope =
+              match new_member with
+              | Func (span, _, params, returns) ->
+                let func_type = FunctionType (params, returns) in
+                Scope.add name (ValueSymbol (span, func_type)) new_ctx.scope
+              | _ -> new_ctx.scope
+            in
+            let new_llvm_scope = Scope.add name llvm_func new_ctx.llvm_scope in
+            {new_ctx with
+             universe = new_universe;
+             llvm_scope = new_llvm_scope;
+             scope = new_scope;
+            }
+          end
       end
     | _ -> context
   in
@@ -180,6 +199,7 @@ and compile_stmt context = function
     (new_ctx, None)
   (* If we reach variable declarations, then each one will create a new context. *)
   | Ast.VarDecl decls ->
+    (* TODO: Handle duplicate symbols *)
     let compile_var_decl context (span, _, name, expr) =
       (* Compile the expression. If resolution fails, emit an error.
           Otherwise, inject the value in the scope. *)
@@ -219,6 +239,11 @@ and compile_expr context = function
       if not (Scope.mem name context.scope) then
         let error_msg = Scope.does_not_exist name in
         let new_ctx = emit_error context span error_msg in
+        let dump name sym =
+          print_string (name ^ ": ");
+          print_endline (string_of_symbol sym)
+        in
+        Scope.iter dump context.scope;
         (new_ctx, VoidType, None)
       else
         (* Otherwise, ensure it's a value. *)

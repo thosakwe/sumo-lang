@@ -30,6 +30,15 @@ let add name value scope =
   | RootScope map -> RootScope (helper map)
   | ChildScope (parent, map) -> ChildScope (parent, (helper map))
 
+let iter f scope =
+  let rec inner f = function
+    | RootScope map -> StringMap.iter f map
+    | ChildScope (parent, map) ->
+      StringMap.iter f map;
+      inner f parent
+  in
+  inner f scope
+
 let empty = RootScope (StringMap.empty)
 
 let does_not_exist name =
