@@ -24,7 +24,13 @@ decl:
 func:
   | FN; name = id; s = func_sig; b = block
     {
-      Ast.ConcreteFunc ($loc, name, s, b)
+      (* If the body is empty, add a "return" *)
+      let nonempty_body =
+        match b with
+        | [] -> [ Ast.Return ($loc(b), None) ]
+        | _ -> b
+      in
+      Ast.ConcreteFunc ($loc, name, s, nonempty_body)
     }
   | EXTERNAL; c = option(C_NAME); name = id; s = func_sig
     {

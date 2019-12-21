@@ -5,7 +5,7 @@ all: call_c return_int return_var #return_var.ll
 call_c: call_c.o glue.o
 
 clean:
-	rm -f return_int return_var *.o *.ll *.s
+	rm -f call_c return_int return_var *.o *.ll *.s
 
 %.o: %.sumo
 	dune exec ../bin/sumoc.exe -- $(SUMOFLAGS) -o $@ $<
