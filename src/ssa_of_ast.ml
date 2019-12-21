@@ -9,7 +9,7 @@ type context =
   }
 
 let rec compile_single_ast path c_unit =
-  let universe = load_ast_into_universe (Ssa.default_universe) path c_unit in
+  let (context, universe) = load_ast_into_universe (Ssa.default_universe) path c_unit in
   let dump_module _ module_ref =
     let m = !module_ref in
     let dump_symbol name (_, sym) =
@@ -19,6 +19,7 @@ let rec compile_single_ast path c_unit =
     StringMap.iter dump_symbol m.symbols
   in
   StringMap.iter dump_module universe.modules;
+  List.iter (function x -> prerr_endline (Sema.string_of_error x)) context.errors;
   ()
 
 and load_ast_into_universe universe path c_unit =
@@ -93,10 +94,10 @@ and load_ast_into_universe universe path c_unit =
     | Ast.FuncDecl (_, _, func) -> compile_function (context, out_list) func
     (* | _ -> (context, out_list) *)
   in
-  let (_, compiled_functions) = List.fold_left compile_decl (new_context, []) c_unit in
+  let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) c_unit in
   this_module := {!this_module with compiled_functions };
 
-  new_universe
+  (final_ctx, new_universe)
 
 and compile_function_signature context (_, params, returns) =
   let compile_one_type (context, type_list) = function
