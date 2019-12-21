@@ -170,14 +170,27 @@ and compile_func context func =
 
 and compile_func_signature context sign =
   (* TODO: Compile params *)
-  let (_, _, ast_returns) = sign in
+  let (_, params, ast_returns) = sign in
   match sema_of_ast_typ context ast_returns with
   | (new_ctx, None) -> (new_ctx, None, VoidType)
   | (new_ctx, (Some returns)) -> begin
       let llvm_returns = llvm_of_sema_type context.llvm_context returns in
-      (* TODO: Put params in this array *)
-      let llvm_sig = Llvm.function_type llvm_returns [| |] in
-      (new_ctx, Some llvm_sig, returns)
+      (* This function compiles a parameter type into LLVM, and returns a new context. *)
+      let compile_param (context, llvm_params) = function
+        | Ast.RegularParam (_, _, ast_type) -> begin
+            match  sema_of_ast_typ context ast_type with
+            | (new_ctx, None) -> (new_ctx, llvm_params)
+            | (new_ctx, Some sema_type) ->
+              let llvm_type = llvm_of_sema_type new_ctx.llvm_context sema_type in
+              (new_ctx, llvm_params @ [llvm_type])
+          end
+        (* TODO: Compile this.x params within a class *)
+        (* TODO: Produce an error when a this.param is seen OUTSIDE of a class. *)
+        | _ -> (context, llvm_params)
+      in
+      let (result_ctx, llvm_params) = List.fold_left compile_param (new_ctx, []) params in
+      let llvm_sig = Llvm.function_type llvm_returns (Array.of_list llvm_params)  in
+      (result_ctx, Some llvm_sig, returns)
     end
 
 and compile_stmt context = function
