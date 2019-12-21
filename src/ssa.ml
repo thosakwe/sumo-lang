@@ -9,11 +9,13 @@ type universe =
 and sumo_module =
   {
     path: string;
-    symbols: (Visibility.t * symbol) StringMap.t
+    symbols: (Visibility.t * symbol) StringMap.t;
+    compiled_functions: func list;
   }
+and func = string * (typ list) * typ * ((instr spanned) list)
 and symbol =
   (* | FuncSymbol of string * typ * (typ list) * (instr list) *)
-  | FuncSymbol of string * (typ list) * typ
+  | FuncSymbol of string * (typ list) * typ * Ast.decl
   | VarSymbol of string * typ
   | TypeSymbol of typ
   (* | ImportedSymbol of (sumo_module ref) * string *)
@@ -46,7 +48,7 @@ let type_of_value = function
   | BoolLiteral _ -> BoolType
 
 let rec string_of_symbol = function
-  | FuncSymbol (name, params, returns) ->
+  | FuncSymbol (name, params, returns, _) ->
     (* let param_string = String.concat ", " (List.map string_of_type params) in
        "fn " ^ name ^ "(" ^ param_string ^ "): " ^ (string_of_type returns)
        ^ " = \n" ^ (string_of_block instrs) *)

@@ -45,7 +45,8 @@ and load_ast_into_universe universe path c_unit =
 
   let symbols =
     let pairs =
-      let pair_of_decl = function
+      let pair_of_decl self =
+        match self with
         | Ast.FuncDecl (_, vis, func) -> begin
             let s = Ast.signature_of_func func in
             let (new_ctx, params, returns) = compile_function_signature !ref_context s in
@@ -57,11 +58,11 @@ and load_ast_into_universe universe path c_unit =
                 | None -> name
                 | Some cn -> cn
               in
-              let symbol = FuncSymbol (c_name, params, returns) in
+              let symbol = FuncSymbol (c_name, params, returns, self) in
               (name, (vis, symbol))
             | Ast.ConcreteFunc (_, name, _, _) ->
               let qualified = Sema.qualify [path; name] in
-              let symbol = FuncSymbol (qualified, params, returns) in
+              let symbol = FuncSymbol (qualified, params, returns, self) in
               (name, (vis, symbol))
           end
       in
@@ -70,9 +71,30 @@ and load_ast_into_universe universe path c_unit =
     StringMap.of_seq (List.to_seq pairs)
   in
 
-  {
-    modules = StringMap.add path (ref { path; symbols }) universe.modules
-  }
+  (* Now that we have a new universe, compile the bodies of each function. *)
+  let this_module = ref { path; symbols; compiled_functions = [] } in
+  let new_universe =
+    {
+      modules = StringMap.add path this_module universe.modules
+    }
+  in
+
+  (* Create a new scope containing all symbols in this module. *)
+  (* TODO: Imports *)
+  let unwrap_symbol (_, x) = x in
+  let unwrapped_symbols = StringMap.map unwrap_symbol symbols in
+  let new_scope = Scope.ChildScope ((!ref_context).scope, unwrapped_symbols) in
+  let new_context = {!ref_context with scope = new_scope } in
+
+  (* Compile them, add them to the module, and return the universe. *)
+  let compile_decl (context, out_list) = function
+    | Ast.FuncDecl (_, _, func) -> compile_function (context, out_list) func
+    (* | _ -> (context, out_list) *)
+  in
+  let (_, compiled_functions) = List.fold_left compile_decl (new_context, []) c_unit in
+  this_module := {!this_module with compiled_functions };
+
+  new_universe
 
 and compile_function_signature context (_, params, returns) =
   let compile_one_type (context, type_list) = function
@@ -86,6 +108,10 @@ and compile_function_signature context (_, params, returns) =
   let (ctx_after_params, param_types) = List.fold_left compile_one_type (context, []) params in
   let (new_ctx, return_type) = compile_type ctx_after_params returns in
   (new_ctx, param_types, return_type)
+
+and compile_function (context, out_list) = function
+  | Ast.ExternalFunc _ -> (context, out_list)
+  | Ast.ConcreteFunc _ -> (context, out_list)
 
 and compile_type context = function
   | Ast.TypeRef (span, name) -> begin
