@@ -135,7 +135,7 @@ and compile_func context func =
             | Some v -> v
           in
           let value = Llvm.declare_function c_name llvm_sign context.llvm_module in
-          let resolved_func = Func (span, name, [], sema_returns) in
+          let resolved_func = Func (span, c_name, [], sema_returns) in
           (new_ctx, resolved_func, Some value)
         end
 
@@ -268,11 +268,6 @@ and compile_expr context = function
         (* Otherwise, ensure it's a value. *)
         (* "failure" is just a helper to create the same error in different cases. *)
         let sym = Scope.find name context.scope in
-        let failure =
-          let error_msg = "The name \"" ^ name ^ "\" (resolves to " ^ (string_of_symbol sym) ^ ") does not resolve to a value." in
-          (* let error_msg = "The name \"" ^ name ^ "\" does not resolve to a value." in *)
-          emit_error context span error_msg
-        in
         match sym with
         (* TODO: Finish this resolution logic *)
         | ValueSymbol (_, typ) ->
@@ -310,7 +305,9 @@ and compile_expr context = function
                 cannot_access
               else begin
                 match Llvm.lookup_function name new_ctx.llvm_module with
-                | None -> (failure, VoidType, None)
+                | None -> 
+                  let error_msg = ("No LLVM function named \"" ^ name ^ "\" has been defined. This is a compiler bug. :(") in
+                  ((emit_error context span error_msg), VoidType, None)
                 | Some func ->
                   let ftyp = FunctionType (params, returns) in
                   (new_ctx, ftyp, Some func)
@@ -319,7 +316,9 @@ and compile_expr context = function
               let error_msg = module_name ^ "." ^ symbol_name ^ " is not a value." in
               ((emit_error new_ctx span error_msg), VoidType, None)
           end
-        | _ -> (failure, VoidType, None)
+        | _ -> 
+          let error_msg = "The name \"" ^ name ^ "\" (resolves to " ^ (string_of_symbol sym) ^ ") does not resolve to a value." in
+          ((emit_error context span error_msg), VoidType, None)
     end
   | Ast.Call (span, target, args) -> begin
       (* TODO: Validate arg types, etc. *)
