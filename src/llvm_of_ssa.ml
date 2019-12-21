@@ -58,16 +58,17 @@ let rec compile_universe module_name errors universe =
   in
 
   (* Once we have our scope, compile each function. *)
-  let compile_functions_in_module m_ref =
-    let compile_one_function f =
-      let _ = compile_function initial_context f in
-      ()
+  let compile_functions_in_module context m_ref =
+    let compile_one_function context f =
+      let (new_ctx, _) = compile_function context f in
+      new_ctx
     in
-    List.iter compile_one_function (!m_ref).compiled_functions
+    List.fold_left compile_one_function context (!m_ref).compiled_functions
   in
-  let compile_module_pair _ m_ref = compile_functions_in_module m_ref in
-  StringMap.iter compile_module_pair universe.modules;
-  initial_context
+  let folder _ m_ref context =
+    compile_functions_in_module context m_ref
+  in
+  StringMap.fold folder universe.modules initial_context
 
 and compile_function context (name, params, returns, instrs) =
   let llvm_function_type = compile_function_signature context.llvm_context params returns in
@@ -76,49 +77,59 @@ and compile_function context (name, params, returns, instrs) =
   let new_scope = Scope.ChildScope (context.scope, new_scope_map) in
   let new_context = { context with scope = new_scope } in
   let final_ctx =
-    let compile_one_instr context (_, instr) =
-      let (new_ctx, _) = compile_instr context instr in
+    let compile_one_instr context (span, instr) =
+      let (new_ctx, _) = compile_instr context span instr in
       new_ctx
     in
     List.fold_left compile_one_instr new_context instrs
   in
   (final_ctx, func)
 
-and compile_instr context = function
-  | Value value -> compile_value context value
+and compile_instr context span = function
+  | Value value -> compile_value context span value
   | Return (_, value) ->
-    let (new_ctx, llvm_value)  = compile_value context value in
+    let (new_ctx, llvm_value)  = compile_value context span value in
     (new_ctx, Llvm.build_ret llvm_value context.builder)
   | ReturnVoid ->
     (context, Llvm.build_ret_void context.builder)
   (* Create a new scope with the given value. *)
   | VarAssn (name, typ, value) ->
     let llvm_type = compile_type context.llvm_context typ in
-    let (new_ctx, llvm_value) = compile_value context value in
+    let (new_ctx, llvm_value) = compile_value context span value in
     let variable = Llvm.build_alloca llvm_type name new_ctx.builder in
     let _ = Llvm.build_store llvm_value variable new_ctx.builder in
     let new_scope = Scope.add name variable context.scope in
     ({ new_ctx with scope = new_scope }, variable)
 
-and compile_value context = function
+and compile_value context span = function
   | IntLiteral v -> (context, Llvm.const_int (Llvm.i64_type context.llvm_context) v)
   | DoubleLiteral v -> (context, Llvm.const_float (Llvm.double_type context.llvm_context) v)
   | BoolLiteral v -> 
     let value = if v then 1 else 0 in
     (context, Llvm.const_int (Llvm.i8_type context.llvm_context) value)
   | VarGet (name, _) ->
-    let target = Scope.find name context.scope in
-    (context, Llvm.build_load target name context.builder)
+    if not (Scope.mem name context.scope) then
+      let error_msg = Scope.does_not_exist name in
+      let new_ctx = emit_error context span error_msg in
+      (new_ctx, Llvm.const_null (Llvm.i64_type context.llvm_context))
+    else
+      let target = Scope.find name context.scope in
+      (context, Llvm.build_load target name context.builder)
   | FunctionCall (_, name, args) ->
-    let target = Scope.find name context.scope in
-    let (new_ctx, llvm_args) =
-      let compile_arg (context, out_list) arg =
-        let (new_ctx, value) = compile_value context arg in
-        (new_ctx, out_list @ [value])
+    if not (Scope.mem name context.scope) then
+      let error_msg = Scope.does_not_exist name in
+      let new_ctx = emit_error context span error_msg in
+      (new_ctx, Llvm.const_null (Llvm.i64_type context.llvm_context))
+    else
+      let target = Scope.find name context.scope in
+      let (new_ctx, llvm_args) =
+        let compile_arg (context, out_list) arg =
+          let (new_ctx, value) = compile_value context span arg in
+          (new_ctx, out_list @ [value])
+        in
+        List.fold_left compile_arg (context, []) args
       in
-      List.fold_left compile_arg (context, []) args
-    in
-    (new_ctx, Llvm.build_call target (Array.of_list llvm_args) name new_ctx.builder)
+      (new_ctx, Llvm.build_call target (Array.of_list llvm_args) name new_ctx.builder)
 
 and compile_function_signature llvm_context params returns =
   let llvm_params =
@@ -135,3 +146,7 @@ and compile_type context = function
   | VoidType -> Llvm.void_type context
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
+
+and emit_error context span error_msg =
+  let error = (span, Sema.Error, error_msg) in
+  {context with errors = context.errors @ [error]}
