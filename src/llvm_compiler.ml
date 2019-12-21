@@ -101,7 +101,7 @@ and compile_member context = function
               Scope.replace name (ValueSymbol (span, func_type)) new_ctx.scope
             | _ -> new_ctx.scope
           in
-          let new_llvm_scope = Scope.add name llvm_func new_ctx.llvm_scope in
+          let new_llvm_scope = Scope.replace name llvm_func new_ctx.llvm_scope in
           let result_ctx = 
             {
               new_ctx with
@@ -328,19 +328,26 @@ and compile_expr context = function
         let failure = emit_error new_ctx span error_msg in
         (failure, VoidType, None)
       (* TODO: Check target type to ensure it's a function. *)
-      | (new_ctx, FunctionType (_, returns), Some llvm_target) ->
-        (* Compile each arg into an LLVM value, but also return a new context. *)
-        let llvm_of_arg (context, output_list) arg =
-          match compile_expr context arg with
-          | (new_ctx, _, None) -> (new_ctx, output_list)
-          | (new_ctx, _, Some value) -> 
-            (new_ctx, output_list @ [value])
-        in
-        let (next_ctx, llvm_args) = List.fold_left llvm_of_arg (new_ctx, []) args in
-        let llvm_arg_array = Array.of_list llvm_args in
-        let value = Llvm.build_call llvm_target llvm_arg_array "tmp" context.llvm_builder in
-        (* TODO: Get return type from FunctionType *)
-        (next_ctx, returns, Some value)
+      | (new_ctx, FunctionType (_, returns), Some llvm_target) -> begin
+          (* Compile each arg into an LLVM value, but also return a new context. *)
+          let llvm_of_arg (context, output_list) arg =
+            match compile_expr context arg with
+            | (new_ctx, _, None) -> (new_ctx, output_list)
+            | (new_ctx, _, Some value) -> 
+              (new_ctx, output_list @ [value])
+          in
+          let (next_ctx, llvm_args) = List.fold_left llvm_of_arg (new_ctx, []) args in
+          let llvm_arg_array = Array.of_list llvm_args in
+          (* If the function returns void, return no value. *)
+          match returns with
+          | VoidType -> 
+            let _ = Llvm.build_call llvm_target llvm_arg_array "" context.llvm_builder in
+            (next_ctx, returns, None)
+          | _ -> 
+            let value = Llvm.build_call llvm_target llvm_arg_array "tmp" context.llvm_builder in
+            (* TODO: Get return type from FunctionType *)
+            (next_ctx, returns, Some value)
+        end
       | (new_ctx, typ, _) ->
         let error_msg = "Cannot call a value of type " ^ (string_of_type typ) ^ " as a function." in
         let next_ctx = emit_error new_ctx span error_msg in
