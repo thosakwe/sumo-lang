@@ -72,12 +72,15 @@ let rec compile_universe module_name errors universe =
 and compile_function context (name, params, returns, instrs) =
   let llvm_function_type = compile_function_signature context.llvm_context params returns in
   let func = Llvm.define_function name llvm_function_type context.llvm_module in
+  let new_scope_map = StringMap.add name func StringMap.empty in
+  let new_scope = Scope.ChildScope (context.scope, new_scope_map) in
+  let new_context = { context with scope = new_scope } in
   let final_ctx =
     let compile_one_instr context (_, instr) =
       let (new_ctx, _) = compile_instr context instr in
       new_ctx
     in
-    List.fold_left compile_one_instr context instrs
+    List.fold_left compile_one_instr new_context instrs
   in
   (final_ctx, func)
 
