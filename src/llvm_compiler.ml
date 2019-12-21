@@ -27,6 +27,7 @@ let rec compile name c_unit universe =
   let unresolved_of_decl = function
     | Ast.FuncDecl (_, vis, func) -> (Ast.name_of_func func, (vis, UnresolvedFunc func))
   in
+
   let members = StringMap.of_seq (List.to_seq (List.map unresolved_of_decl c_unit)) in
   let unresolved_module = {name; members} in
   let new_universe = {modules = StringMap.add name unresolved_module universe.modules } in
@@ -35,6 +36,23 @@ let rec compile name c_unit universe =
     Now that we have the module, make an initial context.
     Then, resolve every symbol against this context, which in turn will produce
     new context values. Once all resolution is done, we can then emit the LLVM code. *)
+
+  (* Create an initial scope. *)
+  (* Create ModuleMembers for all unresolved members, and add them to the scope. *)
+  let root_scope = Scope.of_seq (List.to_seq [
+      ("int", TypeSymbol IntType);
+      ("double", TypeSymbol DoubleType);
+      ("bool", TypeSymbol BoolType);
+      ("void", TypeSymbol VoidType)
+    ])
+  in
+  let initial_scope =
+    let module_name = name in
+    let f name _ = ModuleMember (module_name, name) in
+    let m = StringMap.mapi f members in
+    Scope.ChildScope (root_scope, m)
+  in
+
   let llvm_context = Llvm.global_context () in
   let llvm_builder = Llvm.builder llvm_context in
   let llvm_scope = Scope.empty in
@@ -42,12 +60,7 @@ let rec compile name c_unit universe =
     {
       module_name = name;
       universe = new_universe;
-      scope = Scope.of_seq (List.to_seq [
-          ("int", TypeSymbol IntType);
-          ("double", TypeSymbol DoubleType);
-          ("bool", TypeSymbol BoolType);
-          ("void", TypeSymbol VoidType)
-        ]);
+      scope = initial_scope;
       errors = [];
       expected_return_type = VoidType;
 
@@ -59,43 +72,41 @@ let rec compile name c_unit universe =
   in
 
   (* TODO: Compile members in turn. *)
-  (* TODO: Handle duplicate symbols. *)
-  let compile_member context = function
-    (* If we find an unresolved function, compile it, and add it to the scope. *)
-    | (name, (vis, UnresolvedFunc func)) -> begin
-        let (new_ctx, new_member, llvm_func_opt) = compile_func context func in
-        match llvm_func_opt with
-        | None -> new_ctx
-        | Some llvm_func -> begin
-            let m = StringMap.find context.module_name new_ctx.universe.modules in
-            let new_module_members = StringMap.add name (vis, new_member) m.members in
-            let new_m = {m with members = new_module_members} in
-            let new_modules = StringMap.add name new_m new_ctx.universe.modules in
-            let new_universe = {modules = new_modules} in
-            let new_scope =
-              match new_member with
-              | Func (span, _, params, returns) ->
-                let func_type = FunctionType (params, returns) in
-                Scope.add name (ValueSymbol (span, func_type)) new_ctx.scope
-              | _ -> new_ctx.scope
-            in
-            let new_llvm_scope = Scope.add name llvm_func new_ctx.llvm_scope in
-            {new_ctx with
-             universe = new_universe;
-             llvm_scope = new_llvm_scope;
-             scope = new_scope;
-            }
-          end
-      end
-    | _ -> context
-  in
   let uncompiled_members = List.of_seq (StringMap.to_seq unresolved_module.members) in
   List.fold_left compile_member initial_context uncompiled_members
 
 (* Return the final context. *)
 
-(* TODO: Use optimizers *)
-(* TODO: Return IR instead of dumping *)
+(* TODO: Handle duplicate symbols. *)
+and compile_member context = function
+  (* If we find an unresolved function, compile it, and add it to the scope. *)
+  | (name, (vis, UnresolvedFunc func)) -> begin
+      let (new_ctx, new_member, llvm_func_opt) = compile_func context func in
+      match llvm_func_opt with
+      | None -> new_ctx
+      | Some llvm_func -> begin
+          let m = StringMap.find context.module_name new_ctx.universe.modules in
+          let new_module_members = StringMap.add name (vis, new_member) m.members in
+          let new_m = {m with members = new_module_members} in
+          let new_modules = StringMap.add name new_m new_ctx.universe.modules in
+          let new_universe = {modules = new_modules} in
+          let new_scope =
+            match new_member with
+            | Func (span, _, params, returns) ->
+              let func_type = FunctionType (params, returns) in
+              Scope.add name (ValueSymbol (span, func_type)) new_ctx.scope
+            | _ -> new_ctx.scope
+          in
+          let new_llvm_scope = Scope.add name llvm_func new_ctx.llvm_scope in
+          {new_ctx with
+           universe = new_universe;
+           llvm_scope = new_llvm_scope;
+           scope = new_scope;
+          }
+        end
+    end
+  | _ -> context
+
 
 and compile_decl context = function
   | Ast.FuncDecl (_, _, func) -> compile_func context func
@@ -239,11 +250,11 @@ and compile_expr context = function
       if not (Scope.mem name context.scope) then
         let error_msg = Scope.does_not_exist name in
         let new_ctx = emit_error context span error_msg in
-        let dump name sym =
-          print_string (name ^ ": ");
-          print_endline (string_of_symbol sym)
-        in
-        Scope.iter dump context.scope;
+        (* let dump name sym =
+           print_string (name ^ ": ");
+           print_endline (string_of_symbol sym)
+           in
+           Scope.iter dump context.scope; *)
         (new_ctx, VoidType, None)
       else
         (* Otherwise, ensure it's a value. *)
