@@ -73,7 +73,11 @@ let rec compile name c_unit universe =
 
   (* TODO: Compile members in turn. *)
   let uncompiled_members = List.of_seq (StringMap.to_seq unresolved_module.members) in
-  List.fold_left compile_member initial_context uncompiled_members
+  let compile_one_member context member =
+    let (new_ctx, _) = compile_member context member in
+    new_ctx
+  in
+  List.fold_left compile_one_member initial_context uncompiled_members
 
 (* Return the final context. *)
 
@@ -83,7 +87,7 @@ and compile_member context = function
   | (name, (vis, UnresolvedFunc func)) -> begin
       let (new_ctx, new_member, llvm_func_opt) = compile_func context func in
       match llvm_func_opt with
-      | None -> new_ctx
+      | None -> (new_ctx, UnresolvedFunc func)
       | Some llvm_func -> begin
           let m = StringMap.find context.module_name new_ctx.universe.modules in
           let new_module_members = StringMap.add name (vis, new_member) m.members in
@@ -98,14 +102,18 @@ and compile_member context = function
             | _ -> new_ctx.scope
           in
           let new_llvm_scope = Scope.add name llvm_func new_ctx.llvm_scope in
-          {new_ctx with
-           universe = new_universe;
-           llvm_scope = new_llvm_scope;
-           scope = new_scope;
-          }
+          let result_ctx = 
+            {
+              new_ctx with
+              universe = new_universe;
+              llvm_scope = new_llvm_scope;
+              scope = new_scope;
+            }
+          in
+          (result_ctx, new_member)
         end
     end
-  | _ -> context
+  | (_, (_, self)) -> (context, self)
 
 
 and compile_decl context = function
@@ -265,12 +273,50 @@ and compile_expr context = function
         in
         match Scope.find name context.scope with
         (* TODO: Finish this resolution logic *)
-        (* TODO: Also missing ModuleMember lookup *)
         | ValueSymbol (_, typ) ->
           (* Fetch the LLVM value. *)
           let llvm_value = Scope.find name context.llvm_scope in
           let value = Llvm.build_load llvm_value name context.llvm_builder in
           (context, typ, Some value)
+        (* If we find a module member, determine if we have access, and if it's a value. *)
+        | ModuleMember (module_name, symbol_name) -> begin
+            (* TODO: If we find a value, we also need to be sure we have access to it. *)
+            let (vis, member) = lookup_module_member context module_name symbol_name in
+            let can_access =
+              match vis with
+              | Visibility.Public -> true
+              | _ -> module_name = context.module_name
+            in
+            let cannot_access =
+              let error_msg = "The type \"" ^ symbol_name ^ "\" cannot be accessed in this context." in
+              let new_ctx = emit_error context span error_msg in
+              (new_ctx, VoidType, None)
+            in
+            (* TODO: Qualify names to fetch globals/functions *)
+            (* TODO: FFFFF *)
+            (* match member with *)
+            match compile_member context (symbol_name, (vis, member)) with
+            | (new_ctx, Global (_, typ)) ->
+              if not can_access then
+                cannot_access
+              else
+                let llvm_value = Scope.find name new_ctx.llvm_scope in
+                let value = Llvm.build_load llvm_value name context.llvm_builder in
+                (new_ctx, typ, Some value)
+            | (new_ctx, Func (_, name, params, returns)) -> 
+              if not can_access then
+                cannot_access
+              else begin
+                match Llvm.lookup_function name new_ctx.llvm_module with
+                | None -> (failure, VoidType, None)
+                | Some func ->
+                  let ftyp = FunctionType (params, returns) in
+                  (new_ctx, ftyp, Some func)
+              end
+            | (new_ctx, _) -> 
+              let error_msg = module_name ^ "." ^ symbol_name ^ " is not a value." in
+              ((emit_error new_ctx span error_msg), VoidType, None)
+          end
         | _ -> (failure, VoidType, None)
     end
   | Ast.Call (span, target, args) -> begin
@@ -349,7 +395,7 @@ and sema_of_ast_typ context = function
         match (Scope.find name context.scope) with
         | TypeSymbol typ -> (context, Some typ)
         | ModuleMember (module_name, symbol_name) -> begin
-            match lookup_symbol context module_name symbol_name with
+            match lookup_module_member context module_name symbol_name with
             (* If we find a type, we also need to be sure we have access to it. *)
             | (vis, Type typ) -> begin
                 match vis with
@@ -385,7 +431,7 @@ and emit_error context span error_msg =
   {context with errors = context.errors @ [error]}
 
 (** Looks up a symbol, which we know exists.  *)
-and lookup_symbol context module_name symbol_name =
+and lookup_module_member context module_name symbol_name =
   let m = StringMap.find module_name context.universe.modules in
   StringMap.find symbol_name m.members
 
