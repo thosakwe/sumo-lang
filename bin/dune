@@ -1,10 +1,17 @@
 (executable
   (name sumoc)
+  (modules sumoc)
   (libraries
     sumo
     llvm
     llvm.passmgr_builder
     unix))
+
+(executable
+  (modules top_down)
+  (name top_down)
+  (libraries sumo))
+
 
 (install
   (section bin)
