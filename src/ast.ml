@@ -38,3 +38,11 @@ let name_of_param = function
 let signature_of_func = function
   | ConcreteFunc (_, _, s, _) -> s
   | ExternalFunc (_, _, _, s) -> s
+
+let rec innermost_expr = function
+  | Paren (_, inner) -> inner
+  | Call (span, target, args) ->
+    let new_target = innermost_expr target in
+    let new_args = List.map innermost_expr args in
+    Call (span, new_target, new_args)
+  | _ as self -> self

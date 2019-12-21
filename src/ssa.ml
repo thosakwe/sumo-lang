@@ -31,7 +31,7 @@ and typ =
   | VoidType
   | UnknownType
 and value =
-  | FunctionCall of typ * (value spanned) * ((value spanned) list)
+  | FunctionCall of typ * string * (value list)
   | IntLiteral of int
   | DoubleLiteral of float
   | BoolLiteral of bool
@@ -89,8 +89,8 @@ and string_of_value = function
   | DoubleLiteral v -> string_of_float v
   | BoolLiteral v -> string_of_bool v
   | VarGet (name, typ) -> "get " ^ name ^ ": " ^ (string_of_type typ)
-  | FunctionCall (_, (_, target), spanned_args) ->
-    let args = List.map (function (_, x) -> x) spanned_args in
-    let target_string = string_of_value target in
+  | FunctionCall (_, target_string, args) ->
+    (* let args = List.map (function (_, x) -> x) spanned_args in *)
+    (* let target_string = string_of_value target in *)
     let arg_string = String.concat ", " (List.map string_of_value args) in
     target_string ^ "(" ^ arg_string ^ ")"

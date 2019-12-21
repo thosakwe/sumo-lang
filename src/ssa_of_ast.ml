@@ -245,14 +245,83 @@ and compile_expr context = function
         ((emit_error context span error_msg), UnknownType, None)
       else
         let not_a_value sym = 
-          let error_msg = "The name \"" ^ name ^ "\" (resolves to " ^ (string_of_symbol sym) ^ ") does not resolve to a value." in
+          let error_msg = "The name \"" ^ name ^ "\" resolves to " ^ (string_of_symbol sym) ^ ", which is not a value." in
           ((emit_error context span error_msg), UnknownType, None)
         in
         match Scope.find name context.scope with
         | VarSymbol (name, typ) -> (context, typ, Some (VarGet (name, typ)))
         | _ as sym -> not_a_value sym
     end
-  | _ -> (context, UnknownType, None)
+  (* If we find a call, there's quite a bit we have to do properly resolve it. *)
+  | Ast.Call (span, target, args) -> begin
+      (* 1. Make sure target is a function.
+       * 2. Ensure correct # of args
+       * 3. Ensure correct arg types
+       * 4. TODO: Create new instances of classes, or invoke closures.
+      *)
+
+      (* It's important to note, though, that at this time, we don't have closures,
+       * so the only expressions that can actually be called are identifiers. *)
+      match Ast.innermost_expr target with
+      (* If it IS an identifier, look it up in the scope, to see if it's a function. *)
+      | Ast.Ref (span, name) -> begin
+          (* If it doesn't exist, report an error, of course. *)
+          if not (Scope.mem name context.scope) then
+            let error_msg = (Scope.does_not_exist name) ^ " It cannot be called as a function." in
+            let new_ctx = emit_error context span error_msg in
+            (new_ctx, UnknownType, None)
+          else
+            match Scope.find name context.scope with
+            (* If we find a function, then verify the number of args. *)
+            | FuncSymbol (func_name, params, returns, _) -> begin
+                if (List.length args) != (List.length params) then 
+                  let error_msg =
+                    "The function \"" ^ func_name ^ "\" expects "
+                    ^ (string_of_int (List.length params))
+                    ^ " argument(s), but "
+                    ^ (string_of_int (List.length args))
+                    ^ " argument(s) were provided instead."
+                  in
+                  ((emit_error context span error_msg), UnknownType, None)
+                else
+                  (* If we have the correct number of args, then perform type-checking. *)
+                  let params_to_args = List.combine params args in
+                  let check_one_pair (context, out_list, success) (param_type, arg) =
+                    (* The type-check only fails if we reach a cast failure. *)
+                    let (new_ctx, typ, value_opt) = compile_expr context arg in
+                    let cast_failure = 
+                      let error_msg =
+                        "Cannot cast argument of type " ^ (string_of_type typ)
+                        ^ " to type " ^ (string_of_type param_type) ^ "."
+                      in
+                      ((emit_error new_ctx span error_msg), out_list, false)
+                    in
+                    if not (can_cast_type typ param_type) then
+                      cast_failure
+                    else
+                      match value_opt with
+                      | None -> cast_failure
+                      | Some value -> (context, (out_list @ [value]), success)
+                  in
+                  let (new_ctx, compiled_args, success) =
+                    List.fold_left check_one_pair (context, [], true) params_to_args
+                  in
+                  if not success then
+                    (new_ctx, UnknownType, None)
+                  else
+                    (* Everything is okay, emit the call. *)
+                    let value = FunctionCall (returns, func_name, compiled_args) in
+                    (new_ctx, UnknownType, Some value)
+              end
+            | _ as sym ->  
+              let error_msg = "The name \"" ^ name ^ "\" resolves to " ^ (string_of_symbol sym) ^ ", which is not a value." in
+              ((emit_error context span error_msg), UnknownType, None)
+        end
+      | _ ->
+        let error_msg = "Only top-level symbols may be called as functions." in
+        let new_ctx = emit_error context span error_msg in
+        (new_ctx, UnknownType, None)
+    end
 
 and compile_type context = function
   | Ast.TypeRef (span, name) -> begin

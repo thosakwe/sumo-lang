@@ -1,3 +1,5 @@
+# export SUMOC := dune exec $(shell pwd)/../bin/sumoc.exe --
+# export SUMOC := dune exec $(shell pwd)/../bin/sumoc.exe --
 SUMOFLAGS?=-O0
 
 all: call_c return_int return_var #return_var.ll
