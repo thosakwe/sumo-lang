@@ -267,11 +267,13 @@ and compile_expr context = function
       else
         (* Otherwise, ensure it's a value. *)
         (* "failure" is just a helper to create the same error in different cases. *)
+        let sym = Scope.find name context.scope in
         let failure =
-          let error_msg = "The name \"" ^ name ^ "\" does not resolve to a value." in
+          let error_msg = "The name \"" ^ name ^ "\" (resolves to " ^ (string_of_symbol sym) ^ ") does not resolve to a value." in
+          (* let error_msg = "The name \"" ^ name ^ "\" does not resolve to a value." in *)
           emit_error context span error_msg
         in
-        match Scope.find name context.scope with
+        match sym with
         (* TODO: Finish this resolution logic *)
         | ValueSymbol (_, typ) ->
           (* Fetch the LLVM value. *)
