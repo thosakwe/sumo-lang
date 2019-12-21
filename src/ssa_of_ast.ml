@@ -165,8 +165,38 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
     (ctx_after_stmts, out_list @ [func])
 
 and compile_stmt (context, out_list, expected_return) = function
-  (* | Ast.Return (span, value_opt) *)
+  | Ast.Return (span, value_opt) -> begin
+      let (new_ctx, actual_return_type, value) = match value_opt with
+        | None -> (context, VoidType, None)
+        (* If we are returning a value, compile it, and compare the resulting type. *)
+        | Some v -> begin
+            let (new_ctx, typ, value) = compile_expr context v in
+            (new_ctx, typ, value)
+          end
+      in
+
+      (* If we can't cast, report an error. *)
+      (* TODO: Support ad-hoc casts *)
+      if (can_cast_type actual_return_type expected_return) then
+        let left = string_of_type actual_return_type in
+        let right = string_of_type expected_return in
+        let error_msg = "Cannot return " ^ left ^ " from a function declared to return " ^ right ^ "." in
+        ((emit_error new_ctx span error_msg), out_list, expected_return)
+      else
+        (* Otherwise, emit a return. *)
+        let instr =
+          match value with
+          | None -> ReturnVoid
+          | Some v -> Return (expected_return, v)
+        in
+        (new_ctx, (out_list @ [(span, instr)]), expected_return)
+    end
   | _ -> (context, out_list, expected_return)
+
+and compile_expr context = function
+  (* TODO: Other exprs *)
+  | Ast.IntLiteral (_, v) -> (context, IntType, Some (IntLiteral v))
+  | _ -> (context, UnknownType, None)
 
 and compile_type context = function
   | Ast.TypeRef (span, name) -> begin
@@ -189,3 +219,11 @@ and compile_type context = function
 and emit_error context span error_msg =
   let error = (span, Sema.Error, error_msg) in
   {context with errors = context.errors @ [error]}
+
+(** Checks if a can be casted to b. *)
+and can_cast_type a b =
+  (* TODO: Check classes for inheritance *)
+  (* TODO: Support casts from primitive types *)
+  match (a, b) with
+  (* | (IntType, DoubleType) -> true *)
+  | _ -> a == b
