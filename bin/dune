@@ -5,3 +5,7 @@
     llvm
     llvm.passmgr_builder
     unix))
+
+(install
+  (section bin)
+  (files (sumoc.exe as sumoc)))

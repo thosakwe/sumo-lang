@@ -1,0 +1,12 @@
+opam-version: "2.0"
+name: "sumo"
+version: "0.0"
+synopsis: "Sumo language compilers and tooling"
+maintainer: "Tobe O <thosakwe@gmail.com>"
+authors: "Tobe O <thosakwe@gmail.com>"
+license: "https://github.com/thosakwe/sumo-lang/LICENSE"
+homepage: "https://github.com/thosakwe/sumo-lang"
+bug-reports: "https://github.com/thosakwe/sumo-lang/issues"
+dev-repo: "git://github.com/thosakwe/sumo-lang.git"
+depends: [ "ocaml" "ocamlfind" "llvm" "menhir" ]
+build: ["dune" "build" "@install" "-j" jobs]
