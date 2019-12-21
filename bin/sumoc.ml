@@ -51,12 +51,12 @@ let () =
       in
 
       (* Compile it. *)
-      let name = Filename.remove_extension (Filename.basename !in_file) in
+      (* let name = Filename.remove_extension (Filename.basename !in_file) in *)
 
       (* Compile to LLVM, by chaining sema and codegen. *)
-      Llvm_of_ast.compile_single_ast !in_file c_unit;
+      let result = Llvm_of_ast.compile_single_ast !in_file c_unit in
 
-      let context = Llvm_compiler.compile name c_unit Sema.empty_universe in
+      (* let result = Llvm_compiler.compile name c_unit Sema.empty_universe in *)
 
       let output_path =
         let ext = if !emit_llvm then ".ll" else if !emit_asm then ".s" else ".o" in
@@ -65,9 +65,9 @@ let () =
         | self -> self
       in
 
-      match context.errors with
+      match result.errors with
       | [] -> begin
-          let llvm_ir = Llvm.string_of_llmodule context.llvm_module in
+          let llvm_ir = Llvm.string_of_llmodule result.llvm_module in
           if !emit_llvm then
             let chan = open_out output_path in
             output_string chan llvm_ir;
