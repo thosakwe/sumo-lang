@@ -22,8 +22,6 @@ let rec compile_universe module_name errors universe =
    * 3. Map each module's list of symbols into (name, LLVM values).
    * 4. Concat all these lists into one.
    * 5. Turn these pairs into a map. *)
-
-
   let map_of_all_symbols =
     let list_of_modules = List.of_seq (StringMap.to_seq universe.modules) in
     let list_of_symbols (_, m_ref) =
@@ -36,14 +34,7 @@ let rec compile_universe module_name errors universe =
           let value = Llvm.declare_global llvm_type qualified_name llvm_module in
           out_list @ [(name, value)]
         | FuncSymbol (llvm_name, params, returns, _) ->
-          let llvm_params =
-            let llvm_of_param p = compile_type llvm_context p in
-            List.map llvm_of_param params
-          in
-          let llvm_returns = compile_type llvm_context returns in
-          let llvm_function_type =
-            Llvm.function_type llvm_returns (Array.of_list llvm_params)
-          in
+          let llvm_function_type = compile_function_signature llvm_context params returns in
           let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
           out_list @ [(name, value)]
       in
@@ -66,7 +57,30 @@ let rec compile_universe module_name errors universe =
     }
   in
 
+  (* Once we have our scope, compile each function. *)
+  let compile_functions_in_module m_ref =
+    let compile_one_function f =
+      compile_function initial_context f;
+      ()
+    in
+    List.iter compile_one_function (!m_ref).compiled_functions
+  in
+  let compile_module_pair _ m_ref = compile_functions_in_module m_ref in
+  StringMap.iter compile_module_pair universe.modules;
   initial_context
+
+and compile_function context (name, params, returns, _) =
+  let llvm_function_type = compile_function_signature context.llvm_context params returns in
+  let _ = Llvm.define_function name llvm_function_type context.llvm_module in
+  ()
+
+and compile_function_signature llvm_context params returns =
+  let llvm_params =
+    let llvm_of_param p = compile_type llvm_context p in
+    List.map llvm_of_param params
+  in
+  let llvm_returns = compile_type llvm_context returns in
+  Llvm.function_type llvm_returns (Array.of_list llvm_params)
 
 and compile_type context = function
   | IntType -> Llvm.i64_type context
