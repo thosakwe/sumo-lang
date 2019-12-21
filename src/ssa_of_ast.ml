@@ -238,6 +238,20 @@ and compile_expr context = function
   | Ast.DoubleLiteral (_, v) -> (context, DoubleType, Some (DoubleLiteral v))
   | Ast.BoolLiteral (_, v) -> (context, BoolType, Some (BoolLiteral v))
   | Ast.Paren (_, inner) -> compile_expr context inner
+  (* If we find a reference, just figure out if it's a value. *)
+  | Ast.Ref (span, name) -> begin
+      if not (Scope.mem name context.scope) then
+        let error_msg = Scope.does_not_exist name in
+        ((emit_error context span error_msg), UnknownType, None)
+      else
+        let not_a_value sym = 
+          let error_msg = "The name \"" ^ name ^ "\" (resolves to " ^ (string_of_symbol sym) ^ ") does not resolve to a value." in
+          ((emit_error context span error_msg), UnknownType, None)
+        in
+        match Scope.find name context.scope with
+        | VarSymbol (name, typ) -> (context, typ, Some (VarGet (name, typ)))
+        | _ as sym -> not_a_value sym
+    end
   | _ -> (context, UnknownType, None)
 
 and compile_type context = function

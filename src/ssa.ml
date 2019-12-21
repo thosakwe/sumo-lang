@@ -22,7 +22,6 @@ and symbol =
 and instr =
   | Value of value
   | VarAssn of string * typ * value
-  | VarGet of string * typ
   | Return of typ * value
   | ReturnVoid
 and typ =
@@ -36,6 +35,7 @@ and value =
   | IntLiteral of int
   | DoubleLiteral of float
   | BoolLiteral of bool
+  | VarGet of string * typ
 
 let default_universe =
   {
@@ -47,6 +47,7 @@ let type_of_value = function
   | IntLiteral _ -> IntType
   | DoubleLiteral _ -> DoubleType
   | BoolLiteral _ -> BoolType
+  | VarGet (_, typ) -> typ
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -74,7 +75,6 @@ and string_of_instr = function
   | VarAssn (name, typ, value) ->
     "set " ^ name ^ ": " ^ (string_of_type typ)
     ^ " = " ^ (string_of_value value)
-  | VarGet (name, typ) -> "get " ^ name ^ ": " ^ (string_of_type typ)
   | Return (typ, value) -> "return " ^ (string_of_type typ) ^ " " ^ (string_of_value value)
   | ReturnVoid -> "return void"
   | Value value -> string_of_value value
@@ -88,6 +88,7 @@ and string_of_value = function
   | IntLiteral v -> string_of_int v
   | DoubleLiteral v -> string_of_float v
   | BoolLiteral v -> string_of_bool v
+  | VarGet (name, typ) -> "get " ^ name ^ ": " ^ (string_of_type typ)
   | FunctionCall (_, (_, target), spanned_args) ->
     let args = List.map (function (_, x) -> x) spanned_args in
     let target_string = string_of_value target in
