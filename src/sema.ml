@@ -26,6 +26,10 @@ and typ =
   | VoidType
   | OptionalType of typ
   | FunctionType of (typ list) * typ
+and error_level =
+  | Error
+  | Warning
+and error = Ast.span * error_level * string
 
 let empty_universe =
   {

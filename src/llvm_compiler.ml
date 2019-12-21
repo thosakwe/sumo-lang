@@ -13,10 +13,6 @@ type context =
     llvm_module: Llvm.llmodule;
     llvm_scope: Llvm.llvalue Scope.t;
   }
-and error_level =
-  | Error
-  | Warning
-and error = Ast.span * error_level * string
 
 (** Compiles a compilation unit into LLVM, given the provided
     universe as context. *)
