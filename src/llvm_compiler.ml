@@ -394,11 +394,11 @@ and llvm_of_sema_type context = function
 and sema_of_ast_typ context = function
   (* Optional types are handled by simply wrapping the inner type.
       If inner resolution fails, then this resolution will also fail. *)
-  | Ast.OptionalType (_, inner) -> begin
+  (* | Ast.OptionalType (_, inner) -> begin
       match (sema_of_ast_typ context inner) with
       | (new_ctx, None) -> (new_ctx, None)
       | (new_ctx, Some typ) -> (new_ctx, Some (OptionalType typ))
-    end
+    end *)
   (* Type references are resolved by trying to look up the name in the scope.
       The resolution is only successful if a Type is found. *)
   | Ast.TypeRef (span, name) -> begin

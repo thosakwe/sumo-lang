@@ -16,7 +16,7 @@ and symbol =
   | FuncSymbol of string * (typ list) * typ
   | VarSymbol of string * typ
   | TypeSymbol of typ
-  | ImportedSymbol of (sumo_module ref) * string
+  (* | ImportedSymbol of (sumo_module ref) * string *)
 and instr =
   | VarAssn of string * typ * value
   | VarGet of string * typ
@@ -54,9 +54,9 @@ let rec string_of_symbol = function
     "fn " ^ name ^ "(" ^ param_string ^ "): " ^ (string_of_type returns)
   | TypeSymbol typ -> "type " ^ (string_of_type typ)
   | VarSymbol (name, typ) -> name ^ ": " ^ (string_of_type typ)
-  | ImportedSymbol (m, name) ->
+  (* | ImportedSymbol (m, name) ->
     let {path; _} = !m in
-    path ^ "::" ^ name
+    path ^ "::" ^ name *)
 and string_of_block block =
   let indented_string_of_instr instr =
     "  " ^ (string_of_instr instr)
