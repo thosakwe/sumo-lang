@@ -87,7 +87,7 @@ and load_ast_into_universe universe path c_unit =
   let unwrap_symbol (_, x) = x in
   let unwrapped_symbols = StringMap.map unwrap_symbol symbols in
   let new_scope = Scope.ChildScope ((!ref_context).scope, unwrapped_symbols) in
-  let new_context = {!ref_context with scope = new_scope } in
+  let new_context = {!ref_context with scope = new_scope; universe = new_universe } in
 
   (* Compile them, add them to the module, and return the universe. *)
   let compile_decl (context, out_list) = function
