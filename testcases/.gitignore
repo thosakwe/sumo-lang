@@ -2,3 +2,4 @@ call_c
 return_int
 return_var
 *.s
+*.ll

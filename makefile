@@ -7,7 +7,7 @@ export SUMOC?=sumoc
 all: testcases lib
 
 lib:
-	# $(MAKE) -C lib
+	$(MAKE) -C lib
 
 testcases: lib
 	$(MAKE) -C testcases
