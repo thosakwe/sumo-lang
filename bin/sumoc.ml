@@ -27,14 +27,6 @@ let specs = [
 
 let usage = "usage: sumoc [-Sc] -o <out_file> <in_file>"
 
-let string_of_position pos =
-  let open Lexing in
-  pos.pos_fname
-  ^ ":"
-  ^ (string_of_int pos.pos_lnum)
-  ^ ":"
-  ^ (string_of_int pos.pos_cnum)
-
 let () =
   (* Parse args, and parse the file. *)
   (* TODO: Multiple inputs *)
@@ -53,7 +45,7 @@ let () =
           Sumo_parser.compilation_unit Sumo_lexer.read lexbuf 
         with
         | Sumo_parser.Error ->
-          prerr_endline ("fatal error: syntax error at " ^ (string_of_position lexbuf.lex_curr_p));
+          prerr_endline ("fatal error: syntax error at " ^ (Sema.string_of_position lexbuf.lex_curr_p));
           ignore (exit 1);
           []
       in
@@ -104,12 +96,7 @@ let () =
         end
       | _ as errors -> begin
           let dump_error e =
-            let ((start, _), level, msg) = e in
-            print_string (string_of_position start);
-            print_string ": ";
-            print_string (Llvm_compiler.string_of_error_level level);
-            print_string ": ";
-            print_endline msg
+            print_endline (Sema.string_of_error e)
           in
           List.iter dump_error errors;
           ignore (exit 1)

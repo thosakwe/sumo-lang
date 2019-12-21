@@ -455,7 +455,3 @@ and emit_error context span error_msg =
 and lookup_module_member context module_name symbol_name =
   let m = StringMap.find module_name context.universe.modules in
   StringMap.find symbol_name m.members
-
-and string_of_error_level = function
-  | Error -> "error"
-  | Warning -> "warning"

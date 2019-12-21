@@ -54,3 +54,23 @@ let string_of_symbol = function
   | ModuleMember (m, s) -> m ^ "." ^ s
   | ValueSymbol (_, typ) -> string_of_type typ
   | TypeSymbol typ -> "type " ^ string_of_type typ
+
+let string_of_error_level = function
+  | Error -> "error"
+  | Warning -> "warning"
+
+let string_of_position pos =
+  let open Lexing in
+  pos.pos_fname
+  ^ ":"
+  ^ (string_of_int pos.pos_lnum)
+  ^ ":"
+  ^ (string_of_int pos.pos_cnum)
+
+let string_of_error e =
+  let ((start, _), level, msg) = e in
+  (string_of_position start)
+  ^ ": "
+  ^ (string_of_error_level level)
+  ^ ": "
+  ^ msg
