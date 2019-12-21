@@ -165,6 +165,14 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
     (ctx_after_stmts, out_list @ [func])
 
 and compile_stmt (context, out_list, expected_return) = function
+  (* If we get an expression, just compile it. *)
+  (* TODO: Do these actually generate? *)
+  | Ast.Expr (span, v) -> begin
+      match compile_expr context v with
+      | (new_ctx, _, None) -> (new_ctx, out_list, expected_return)
+      | (new_ctx, _, (Some value)) ->
+        (new_ctx, out_list @ [(span, Value value)], expected_return)
+    end
   | Ast.Return (span, value_opt) -> begin
       let (new_ctx, actual_return_type, value) = match value_opt with
         | None -> (context, VoidType, None)

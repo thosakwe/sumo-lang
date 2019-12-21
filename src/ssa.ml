@@ -20,6 +20,7 @@ and symbol =
   | TypeSymbol of typ
   (* | ImportedSymbol of (sumo_module ref) * string *)
 and instr =
+  | Value of value
   | VarAssn of string * typ * value
   | VarGet of string * typ
   | Return of typ * value
@@ -76,6 +77,7 @@ and string_of_instr = function
   | VarGet (name, typ) -> "get " ^ name ^ ": " ^ (string_of_type typ)
   | Return (typ, value) -> "return " ^ (string_of_type typ) ^ " " ^ (string_of_value value)
   | ReturnVoid -> "return void"
+  | Value value -> string_of_value value
 and string_of_type = function
   | IntType -> "int"
   | DoubleType -> "double"
