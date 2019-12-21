@@ -199,6 +199,28 @@ and compile_stmt (context, out_list, expected_return) = function
         in
         (new_ctx, (out_list @ [(span, instr)]), expected_return)
     end
+  (* If we reach variable declarations, then each one will create a new context. *)
+  | Ast.VarDecl decls ->
+    (* TODO: Handle duplicate symbols *)
+    let compile_var_decl (context, out_list) (span, _, name, expr) =
+      (* Compile the expression. If resolution fails, emit an error.
+          Otherwise, inject the value in the scope. *)
+      let (new_ctx, typ, value_opt) = compile_expr context expr in
+      match value_opt with
+      | None -> 
+        let error_msg = "Compiling this variable declaration produced an error." in
+        ((emit_error new_ctx span error_msg), out_list)
+      | Some value -> begin
+          (* TODO: SSA variables - get a unique name for each *)
+          let ssa_name = name in
+          let sym = VarSymbol (ssa_name, typ) in
+          let new_scope = Scope.add name sym context.scope in
+          let instr = VarAssn (ssa_name, typ, value) in
+          (({ new_ctx with scope = new_scope }), (out_list @ [(span, instr)]))
+        end
+    in
+    let (new_ctx, new_out_list) = List.fold_left compile_var_decl (context, out_list) decls in
+    (new_ctx, new_out_list, expected_return)
   | _ -> (context, out_list, expected_return)
 
 and compile_expr context = function
