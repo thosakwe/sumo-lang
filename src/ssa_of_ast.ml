@@ -15,8 +15,12 @@ let rec compile_single_ast path c_unit =
     let dump_symbol name (_, sym) =
       print_endline (name ^ ": " ^ (string_of_symbol sym))
     in
+    let dump_func f =
+      print_endline (string_of_func f)
+    in
     print_endline ("Module \"" ^ m.path ^ "\":");
-    StringMap.iter dump_symbol m.symbols
+    StringMap.iter dump_symbol m.symbols;
+    List.iter dump_func m.compiled_functions
   in
   StringMap.iter dump_module universe.modules;
   List.iter (function x -> prerr_endline (Sema.string_of_error x)) context.errors;
@@ -117,7 +121,7 @@ and compile_function (context, out_list) = function
   | Ast.ConcreteFunc (span, name, fsig, block) ->
     compile_concrete_function context out_list (span, name, fsig, block)
 
-and compile_concrete_function context out_list (span, name, fsig, _) =
+and compile_concrete_function context out_list (span, name, fsig, stmts) =
   (* If this module is not in the universe, don't compile it. *)
   if not (StringMap.mem context.this_module context.universe.modules) then
     let error_msg = "No module exists at path \"" ^ context.this_module ^ "\"." in
@@ -132,9 +136,37 @@ and compile_concrete_function context out_list (span, name, fsig, _) =
     (* Compile the function signature, so we can get param+return types *)
     let (ctx_after_sig, params, returns) = compile_function_signature context fsig in
 
+    (* Make a new scope+context, with all params injected as values. *)
+    let ctx_with_params =
+      let new_scope =
+        let combined_list =
+          let (_, ast_params, _) = fsig in
+          let param_names = List.map Ast.name_of_param ast_params in
+          List.combine param_names params
+        in
+        let pair_list =
+          let pair_of_combined (name, typ) =
+            (name, VarSymbol (name, typ))
+          in
+          List.map pair_of_combined combined_list
+        in
+        let pair_seq = List.to_seq pair_list in
+        let child_map = StringMap.of_seq pair_seq in
+        Scope.ChildScope (context.scope, child_map)
+      in
+      {ctx_after_sig with scope = new_scope}
+    in
+
+    (* Next, compile the statements in turn. *)
+    let (ctx_after_stmts, instrs, _) = List.fold_left compile_stmt (ctx_with_params, [], returns) stmts in
+
     (* Finally, just create the function object. *)
-    let func = (qualified, params, returns, []) in
-    (ctx_after_sig, out_list @ [func])
+    let func = (qualified, params, returns, instrs) in
+    (ctx_after_stmts, out_list @ [func])
+
+and compile_stmt (context, out_list, expected_return) = function
+  (* | Ast.Return (span, value_opt) *)
+  | _ -> (context, out_list, expected_return)
 
 and compile_type context = function
   | Ast.TypeRef (span, name) -> begin

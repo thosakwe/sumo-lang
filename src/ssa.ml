@@ -47,7 +47,12 @@ let type_of_value = function
   | DoubleLiteral _ -> DoubleType
   | BoolLiteral _ -> BoolType
 
-let rec string_of_symbol = function
+let rec string_of_func (name, params, returns, spanned_instrs) =
+  let instrs = List.map (function (_, x) -> x) spanned_instrs in
+  let param_string = String.concat ", " (List.map string_of_type params) in
+       "fn " ^ name ^ "(" ^ param_string ^ "): " ^ (string_of_type returns)
+       ^ " = \n" ^ (string_of_block instrs)
+and string_of_symbol = function
   | FuncSymbol (name, params, returns, _) ->
     (* let param_string = String.concat ", " (List.map string_of_type params) in
        "fn " ^ name ^ "(" ^ param_string ^ "): " ^ (string_of_type returns)

@@ -31,6 +31,10 @@ let name_of_func = function
   | ConcreteFunc (_, name, _, _) -> name
   | ExternalFunc(_, _, name, _) -> name
 
+let name_of_param = function
+  | ThisParam (_, name) -> name
+  | RegularParam (_, name, _) -> name
+
 let signature_of_func = function
   | ConcreteFunc (_, _, s, _) -> s
   | ExternalFunc (_, _, _, s) -> s
