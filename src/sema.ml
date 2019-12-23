@@ -77,8 +77,9 @@ let string_of_position pos =
 
 let string_of_error e =
   let ((start, _), level, msg) = e in
-  (string_of_position start)
+  (string_of_error_level level)
   ^ ": "
+  ^ (string_of_position start)
   ^ (string_of_error_level level)
   ^ ": "
   ^ msg

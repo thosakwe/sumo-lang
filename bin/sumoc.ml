@@ -70,7 +70,7 @@ let () =
       let dump_error e =
         print_endline (Sema.string_of_error e)
       in
-      List.iter dump_error errors;
+      List.iter dump_error result.errors;
 
       match errors with
       | [] -> begin

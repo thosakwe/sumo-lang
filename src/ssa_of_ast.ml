@@ -331,6 +331,10 @@ and emit_error context span error_msg =
   let error = (span, Sema.Error, error_msg) in
   {context with errors = context.errors @ [error]}
 
+and emit_warning context span error_msg =
+  let error = (span, Sema.Warning, error_msg) in
+  {context with errors = context.errors @ [error]}
+
 and cast_value context span value_opt from_type to_type =
   if from_type = to_type then
     (context, Ok value_opt)
@@ -341,7 +345,9 @@ and cast_value context span value_opt from_type to_type =
       (context, Ok new_value)
     | (DoubleType, IntType, Some value) ->
       let new_value = Some (CastDoubleToInt value) in
-      (context, Ok new_value)
+      let warning_msg = "Casting a double to int loses precision." in
+      let new_ctx = emit_warning context span warning_msg in
+      (new_ctx, Ok new_value)
     | _ ->
       let left = string_of_type from_type in
       let right = string_of_type to_type in
