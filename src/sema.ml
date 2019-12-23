@@ -82,3 +82,14 @@ let string_of_error e =
   ^ (string_of_error_level level)
   ^ ": "
   ^ msg
+
+(** Splits a list of errors into those categorized by type.
+ * Returns (errors, warnings, hints, info). *)
+let organize_errors (lst: error list) =
+  let fold_error (e, w, h, i) err =
+    let (_, level, _) = err in
+    match level with
+    | Error -> (e @ [err], w, h, i)
+    | Warning -> (e, w @ [err], h, i)
+  in
+  List.fold_left fold_error ([], [], [], []) lst

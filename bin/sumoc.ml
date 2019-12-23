@@ -65,7 +65,14 @@ let () =
         | self -> self
       in
 
-      match result.errors with
+      let (errors, _, _, _) = Sema.organize_errors result.errors in
+
+      let dump_error e =
+        print_endline (Sema.string_of_error e)
+      in
+      List.iter dump_error errors;
+
+      match errors with
       | [] -> begin
           let llvm_ir = Llvm.string_of_llmodule result.llvm_module in
           if !emit_llvm then
@@ -94,13 +101,7 @@ let () =
               prerr_endline ("Running `" ^ llc_invocation ^ "` resulted in an error.");
               ignore (exit 1)
         end
-      | _ as errors -> begin
-          let dump_error e =
-            print_endline (Sema.string_of_error e)
-          in
-          List.iter dump_error errors;
-          ignore (exit 1)
-        end
+      | _ -> ignore (exit 1) 
   with
   | Sys_error msg ->
     prerr_endline ("fatal error: " ^ msg);
