@@ -9,6 +9,6 @@ return_int.exe return_var.exe var_assign_and_return.exe
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(LDLIBS)
 
 clean:
-	rm -f call_c return_int return_var *.o *.ll *.s
+	rm -f *.o *.ll *.s *.exe
 
 include ../config.mak
