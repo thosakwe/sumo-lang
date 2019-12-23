@@ -121,7 +121,7 @@ and compile_value context span = function
   | CastIntToDouble inner ->
     let (new_ctx, llvm_inner) = compile_value context span inner in
     let double_type = Llvm.double_type context.llvm_context in
-    let new_value = Llvm.build_intcast llvm_inner double_type "tmp" context.builder in
+    let new_value = Llvm.build_sitofp llvm_inner double_type "tmp" context.builder in
     (new_ctx, new_value)
   | CastDoubleToInt inner ->
     let (new_ctx, llvm_inner) = compile_value context span inner in
