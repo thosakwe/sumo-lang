@@ -118,6 +118,16 @@ and compile_value context span = function
   | BoolLiteral v -> 
     let value = if v then 1 else 0 in
     (context, Llvm.const_int (Llvm.i8_type context.llvm_context) value)
+  | CastIntToDouble inner ->
+    let (new_ctx, llvm_inner) = compile_value context span inner in
+    let double_type = Llvm.double_type context.llvm_context in
+    let new_value = Llvm.build_intcast llvm_inner double_type "tmp" context.builder in
+    (new_ctx, new_value)
+  | CastDoubleToInt inner ->
+    let (new_ctx, llvm_inner) = compile_value context span inner in
+    let int_type = Llvm.i64_type context.llvm_context in
+    let new_value = Llvm.build_trunc llvm_inner int_type "tmp" context.builder in
+    (new_ctx, new_value)
   | VarGet (name, _) ->
     if not (Scope.mem name context.scope) then
       let error_msg = Scope.does_not_exist name in
