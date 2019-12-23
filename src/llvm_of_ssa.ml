@@ -29,7 +29,7 @@ let rec compile_universe module_path errors universe =
       let llvm_of_pair out_list (name, (_, sym)) =
         match sym with
         | TypeSymbol _ -> out_list
-        | VarSymbol (qualified_name, typ) ->
+        | VarSymbol (_, qualified_name, typ) ->
           let llvm_type = compile_type llvm_context typ in
           let value = Llvm.declare_global llvm_type qualified_name llvm_module in
           out_list @ [(name, value)]

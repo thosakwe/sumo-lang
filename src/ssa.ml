@@ -16,7 +16,7 @@ and func = string * (typ list) * typ * ((instr spanned) list)
 and symbol =
   (* | FuncSymbol of string * typ * (typ list) * (instr list) *)
   | FuncSymbol of bool * string * (typ list) * typ * Ast.decl
-  | VarSymbol of string * typ
+  | VarSymbol of bool * string * typ
   | TypeSymbol of typ
   (* | ImportedSymbol of (sumo_module ref) * string *)
 and instr =
@@ -67,7 +67,9 @@ and string_of_symbol = function
     let lead = if ext then "external " else "fn " in
     lead ^ name ^ "(" ^ param_string ^ "): " ^ (string_of_type returns)
   | TypeSymbol typ -> "type " ^ (string_of_type typ)
-  | VarSymbol (name, typ) -> name ^ ": " ^ (string_of_type typ)
+  | VarSymbol (final, name, typ) -> 
+    let mut_string =  if final then "final " else "var " in
+    mut_string ^ name ^ ": " ^ (string_of_type typ)
 (* | ImportedSymbol (m, name) ->
    let {path; _} = !m in
    path ^ "::" ^ name *)

@@ -133,7 +133,7 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
         in
         let pair_list =
           let pair_of_combined (name, typ) =
-            (name, VarSymbol (name, typ))
+            (name, VarSymbol (false, name, typ))
           in
           List.map pair_of_combined combined_list
         in
@@ -187,7 +187,7 @@ and compile_stmt (context, out_list, expected_return) = function
   (* If we reach variable declarations, then each one will create a new context. *)
   | Ast.VarDecl decls ->
     (* TODO: Handle duplicate symbols *)
-    let compile_var_decl (context, out_list) (span, _, name, expr) =
+    let compile_var_decl (context, out_list) (span, final, name, expr) =
       (* Compile the expression. If resolution fails, emit an error.
           Otherwise, inject the value in the scope. *)
       let (new_ctx, typ, value_opt) = compile_expr context expr in
@@ -198,7 +198,7 @@ and compile_stmt (context, out_list, expected_return) = function
       | Some value -> begin
           (* TODO: SSA variables - get a unique name for each *)
           let ssa_name = name in
-          let sym = VarSymbol (ssa_name, typ) in
+          let sym = VarSymbol (final, ssa_name, typ) in
           let new_scope = Scope.add name sym context.scope in
           let instr = VarAssn (ssa_name, typ, value) in
           (({ new_ctx with scope = new_scope }), (out_list @ [(span, instr)]))
@@ -234,7 +234,7 @@ and compile_expr context = function
           ((emit_error context span error_msg), UnknownType, None)
         in
         match Scope.find name context.scope with
-        | VarSymbol (name, typ) -> (context, typ, Some (VarGet (name, typ)))
+        | VarSymbol (_, name, typ) -> (context, typ, Some (VarGet (name, typ)))
         | _ as sym -> not_a_value sym
     end
   (* If we find a call, there's quite a bit we have to do properly resolve it. *)
