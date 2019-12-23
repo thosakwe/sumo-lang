@@ -10,7 +10,6 @@ and stmt =
   | Expr of span * expr
   | VarDecl of var_decl list
   | Return of span * (expr option)
-  | Assign of span * assign_target * assign_op * expr
 and var_decl = span * bool * string * expr
 and assign_target =
   | VariableTarget of span * string
@@ -29,6 +28,7 @@ and expr =
   | BoolLiteral of span * bool
   | Paren of span * expr
   | Call of span * expr * (expr list)
+  | Assign of span * assign_target * assign_op * expr
 and param =
   | ThisParam of span * string
   | RegularParam of span * string * typ

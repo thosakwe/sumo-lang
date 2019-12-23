@@ -90,7 +90,6 @@ stmt:
       in
       Ast.VarDecl (List.map expand_decl d)
     }
-  | t = assign_target; o = assign_op; v = expr { ($loc, t, o, v) }
 ;
 
 assign_target:
@@ -115,6 +114,7 @@ expr:
   | v = BOOL { Ast.BoolLiteral ($loc, v) }
   | v = id { Ast.Ref ($loc, v) }
   | LPAREN; v = expr; RPAREN { Ast.Paren ($loc, v) }
+  | t = assign_target; o = assign_op; v = expr { Ast.Assign ($loc, t, o, v) }
   | t = expr; LPAREN; a = separated_list(COMMA, expr); RPAREN { Ast.Call ($loc, t, a) }
 ;
 

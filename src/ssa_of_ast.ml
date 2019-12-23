@@ -237,6 +237,7 @@ and compile_expr context = function
         | VarSymbol (_, name, typ) -> (context, typ, Some (VarGet (name, typ)))
         | _ as sym -> not_a_value sym
     end
+  | Ast.Assign (span, target, op, value) -> compile_assign context (span, target, op, value)
   (* If we find a call, there's quite a bit we have to do properly resolve it. *)
   | Ast.Call (span, target, args) -> begin
       (* 1. Make sure target is a function.
@@ -308,6 +309,51 @@ and compile_expr context = function
         let new_ctx = emit_error context span error_msg in
         (new_ctx, UnknownType, None)
     end
+
+(** Compiles an assignment expression. *)
+and compile_assign context = function
+  (* To re-assign a local variable, it must exist in the context, and be reassignable.
+   * In addition, we must be able to cast the value to whatever type is expected. *)
+  | (span, Ast.VariableTarget(_, name), Ast.Equals, rhs) -> begin
+      if not (Scope.mem name context.scope) then
+        let error_msg = Scope.does_not_exist name in
+        let new_ctx = emit_error context span error_msg in
+        (new_ctx, UnknownType, None)
+      else
+        match Scope.find name context.scope with
+        | VarSymbol (final, name, expected_type) -> begin
+            if final then
+              let error_msg =
+                "The symbol \"" ^ name
+                ^ "\" is final, and cannot be reassigned."
+              in
+              let new_ctx = emit_error context span error_msg in
+              (new_ctx, UnknownType, None)
+            else
+              (* If this is a mutable symbol, try to compile+cast the value. *)
+              match compile_expr context rhs with
+              | (new_ctx, _, None) -> (new_ctx, UnknownType, None)
+              | (ctx_after_expr, actual_type, Some value) -> begin
+                  match cast_value ctx_after_expr span (Some value) actual_type expected_type with
+                  | (new_ctx, Error _) -> (new_ctx, UnknownType, None)
+                  | (new_ctx, Ok coerced_value_opt) ->
+                    (new_ctx, expected_type, coerced_value_opt)
+                end
+          end
+        | _ as sym ->
+          let error_msg =
+            "The name \"" ^ name ^ "\" resolves to "
+            ^ string_of_symbol sym
+            ^ ", which is not a reassignable symbol."
+          in
+          let new_ctx = emit_error context span error_msg in
+          (new_ctx, UnknownType, None)
+    end
+(* TODO: Handle other assignment cases *)
+(* | (span, _, _, _) ->
+   let error_msg = "I don't know how to compile this assignment (yet!)." in
+   let new_ctx = emit_error context span error_msg in
+   (new_ctx, None) *)
 
 and compile_type context = function
   | Ast.TypeRef (span, name) -> begin
