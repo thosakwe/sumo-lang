@@ -36,6 +36,8 @@ and value =
   | DoubleLiteral of float
   | BoolLiteral of bool
   | VarGet of string * typ
+  | CastIntToDouble of value
+  | CastDoubleToInt of value
 
 let default_universe =
   {
@@ -48,6 +50,8 @@ let type_of_value = function
   | DoubleLiteral _ -> DoubleType
   | BoolLiteral _ -> BoolType
   | VarGet (_, typ) -> typ
+  | CastIntToDouble _ -> DoubleType
+  | CastDoubleToInt _ -> IntType
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -95,6 +99,10 @@ and string_of_value = function
     (* let target_string = string_of_value target in *)
     let arg_string = String.concat ", " (List.map string_of_value args) in
     target_string ^ "(" ^ arg_string ^ ")"
+  | CastDoubleToInt inner ->
+    "cast<double->int>(" ^ (string_of_value inner) ^ ")"
+  | CastIntToDouble inner ->
+    "cast<int->double>(" ^ (string_of_value inner) ^ ")"
 
 let dump_module _ module_ref =
   let m = !module_ref in

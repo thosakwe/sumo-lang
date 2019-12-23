@@ -335,11 +335,17 @@ and cast_value context span value_opt from_type to_type =
   if from_type = to_type then
     (context, Ok value_opt)
   else
-    match (from_type, to_type) with
+    match (from_type, to_type, value_opt) with
+    | (IntType, DoubleType, Some value) ->
+      let new_value = Some (CastIntToDouble value) in
+      (context, Ok new_value)
+    | (DoubleType, IntType, Some value) ->
+      let new_value = Some (CastDoubleToInt value) in
+      (context, Ok new_value)
     | _ ->
       let left = string_of_type from_type in
       let right = string_of_type to_type in
-      let error_msg = "Cannot return " ^ left ^ " from a function declared to return " ^ right ^ "." in
+      let error_msg = "Cannot cast a value of type " ^ left ^ " to " ^ right ^ "." in
       let new_ctx = emit_error context span error_msg in
       (new_ctx, Error ())
 
