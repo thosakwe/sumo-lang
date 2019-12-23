@@ -1,5 +1,3 @@
-call_c
-return_int
-return_var
+*.exe
 *.s
 *.ll
