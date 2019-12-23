@@ -200,7 +200,7 @@ and compile_stmt (context, out_list, expected_return) = function
           let ssa_name = name in
           let sym = VarSymbol (final, ssa_name, typ) in
           let new_scope = Scope.add name sym context.scope in
-          let instr = VarAssn (ssa_name, typ, value) in
+          let instr = Value (VarSet (ssa_name, typ, value)) in
           (({ new_ctx with scope = new_scope }), (out_list @ [(span, instr)]))
         end
     in
@@ -336,8 +336,18 @@ and compile_assign context = function
               | (ctx_after_expr, actual_type, Some value) -> begin
                   match cast_value ctx_after_expr span (Some value) actual_type expected_type with
                   | (new_ctx, Error _) -> (new_ctx, UnknownType, None)
-                  | (new_ctx, Ok coerced_value_opt) ->
-                    (new_ctx, expected_type, coerced_value_opt)
+                  | (new_ctx, Ok coerced_value_opt) -> begin
+                      match coerced_value_opt with
+                      | None ->
+                        let error_msg =
+                          "A value of type void cannot be used as the right-hand" 
+                          ^ " side of an assignment."
+                        in
+                        ((emit_error new_ctx span error_msg), expected_type, coerced_value_opt)
+                      | Some coerced_value ->
+                        let result_value = VarSet (name, expected_type, coerced_value) in
+                        (new_ctx, expected_type, Some result_value)
+                    end
                 end
           end
         | _ as sym ->

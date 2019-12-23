@@ -103,14 +103,6 @@ and compile_instr context span = function
     (new_ctx, Llvm.build_ret llvm_value context.builder)
   | ReturnVoid ->
     (context, Llvm.build_ret_void context.builder)
-  (* Create a new scope with the given value. *)
-  | VarAssn (name, typ, value) ->
-    let llvm_type = compile_type context.llvm_context typ in
-    let (new_ctx, llvm_value) = compile_value context span value in
-    let variable = Llvm.build_alloca llvm_type name new_ctx.builder in
-    let _ = Llvm.build_store llvm_value variable new_ctx.builder in
-    let new_scope = Scope.add name variable context.scope in
-    ({ new_ctx with scope = new_scope }, variable)
 
 and compile_value context span = function
   | IntLiteral v -> (context, Llvm.const_int (Llvm.i64_type context.llvm_context) v)
@@ -136,6 +128,14 @@ and compile_value context span = function
     else
       let target = Scope.find name context.scope in
       (context, Llvm.build_load target name context.builder)
+  (* Create a new scope with the given value. *)
+  | VarSet (name, typ, value) ->
+    let llvm_type = compile_type context.llvm_context typ in
+    let (new_ctx, llvm_value) = compile_value context span value in
+    let variable = Llvm.build_alloca llvm_type name new_ctx.builder in
+    let _ = Llvm.build_store llvm_value variable new_ctx.builder in
+    let new_scope = Scope.replace name variable context.scope in
+    ({ new_ctx with scope = new_scope }, variable)
   | FunctionCall (returns, name, args) ->
     match Llvm.lookup_function name context.llvm_module with
     | None ->

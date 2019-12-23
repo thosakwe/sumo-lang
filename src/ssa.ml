@@ -21,7 +21,6 @@ and symbol =
   (* | ImportedSymbol of (sumo_module ref) * string *)
 and instr =
   | Value of value
-  | VarAssn of string * typ * value
   | Return of typ * value
   | ReturnVoid
 and typ =
@@ -36,6 +35,7 @@ and value =
   | DoubleLiteral of float
   | BoolLiteral of bool
   | VarGet of string * typ
+  | VarSet of string * typ * value
   | CastIntToDouble of value
   | CastDoubleToInt of value
 
@@ -50,6 +50,7 @@ let type_of_value = function
   | DoubleLiteral _ -> DoubleType
   | BoolLiteral _ -> BoolType
   | VarGet (_, typ) -> typ
+  | VarSet (_, typ, _) -> typ
   | CastIntToDouble _ -> DoubleType
   | CastDoubleToInt _ -> IntType
 
@@ -79,9 +80,6 @@ and string_of_block block =
   in
   String.concat "\n" (List.map indented_string_of_instr block)
 and string_of_instr = function
-  | VarAssn (name, typ, value) ->
-    "set " ^ name ^ ": " ^ (string_of_type typ)
-    ^ " = " ^ (string_of_value value)
   | Return (typ, value) -> "return " ^ (string_of_type typ) ^ " " ^ (string_of_value value)
   | ReturnVoid -> "return void"
   | Value value -> string_of_value value
@@ -96,6 +94,9 @@ and string_of_value = function
   | DoubleLiteral v -> string_of_float v
   | BoolLiteral v -> string_of_bool v
   | VarGet (name, typ) -> "get " ^ name ^ ": " ^ (string_of_type typ)
+  | VarSet (name, typ, value) ->
+    "set " ^ name ^ ": " ^ (string_of_type typ)
+    ^ " = " ^ (string_of_value value)
   | FunctionCall (_, target_string, args) ->
     (* let args = List.map (function (_, x) -> x) spanned_args in *)
     (* let target_string = string_of_value target in *)
