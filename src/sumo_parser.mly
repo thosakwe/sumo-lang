@@ -1,7 +1,8 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
-
 %token EXTERNAL FINAL FN RETURN THIS VAR
+
+%token <Ast.assign_op> ASSIGN_OP
 %token <Visibility.t> VIS
 %token <string> C_NAME
 
@@ -89,7 +90,15 @@ stmt:
       in
       Ast.VarDecl (List.map expand_decl d)
     }
+  | t = assign_target; o = assign_op; v = expr { ($loc, t, o, v) }
 ;
+
+assign_target:
+  | n = id { Ast.VariableTarget ($loc, n) };
+
+assign_op:
+  | v = ASSIGN_OP { v }
+  | EQUALS { Ast.Equals };
 
 var_decl:
   n = id; EQUALS; v = expr { ($loc, n, v) }

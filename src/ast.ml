@@ -10,11 +10,14 @@ and stmt =
   | Expr of span * expr
   | VarDecl of var_decl list
   | Return of span * (expr option)
+  | Assign of span * assign_target * assign_op * expr
 and var_decl = span * bool * string * expr
 and assign_target =
   | VariableTarget of span * string
   (* | FieldTarget of span * expr * string
   | IndexTarget of span * expr * expr *)
+and assign_op =
+  | Equals
 and block = stmt list
 and typ =
   | TypeRef of span * string
