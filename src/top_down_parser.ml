@@ -15,23 +15,23 @@ let next_span lexbuf =
   lexbuf.lex_start_p <- lexbuf.lex_curr_p;
   out
 
-let rec parse_stmt lexbuf tokens =
+let rec parse_stmt lexbuf errors tokens =
   let start = lexbuf.lex_curr_p in
   let span () = (start, lexbuf.lex_curr_p) in
   match tokens with
   | RETURN :: rest -> begin
-    let (new_tokens, value) = parse_expr lexbuf rest in
+    let (new_tokens, new_errors, value) = parse_expr lexbuf errors rest in
     let node = Return (span (), value) in
-    (new_tokens, Some node)
+    (new_tokens, new_errors, Some node)
   end
   | _ -> begin
-    match parse_expr lexbuf tokens with
-    | (new_tokens, Some value) -> (new_tokens, Some (Expr (span (), value)))
-    | _ -> (tokens, None)
+    match parse_expr lexbuf errors tokens with
+    | (new_tokens, new_errors, Some value) -> (new_tokens, new_errors, Some (Expr (span (), value)))
+    | _ -> (tokens, errors, None)
   end
 
-and parse_expr lexbuf = function
-  | INT v :: rest -> (rest, Some (IntLiteral ((next_span lexbuf), v)))
-  | DOUBLE v :: rest -> (rest, Some (DoubleLiteral ((next_span lexbuf), v)))
-  | BOOL v :: rest -> (rest, Some (BoolLiteral ((next_span lexbuf), v)))
-  | _ as tokens -> (tokens, None)
+and parse_expr lexbuf errors = function
+  | INT v :: rest -> (rest, errors, Some (IntLiteral ((next_span lexbuf), v)))
+  | DOUBLE v :: rest -> (rest, errors, Some (DoubleLiteral ((next_span lexbuf), v)))
+  | BOOL v :: rest -> (rest, errors, Some (BoolLiteral ((next_span lexbuf), v)))
+  | _ as tokens -> (tokens, errors, None)

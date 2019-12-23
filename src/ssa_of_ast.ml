@@ -170,21 +170,19 @@ and compile_stmt (context, out_list, expected_return) = function
           end
       in
 
-      (* If we can't cast, report an error. *)
-      (* TODO: Support ad-hoc casts *)
-      if not (can_cast_type actual_return_type expected_return) then
-        let left = string_of_type actual_return_type in
-        let right = string_of_type expected_return in
-        let error_msg = "Cannot return " ^ left ^ " from a function declared to return " ^ right ^ "." in
-        ((emit_error new_ctx span error_msg), out_list, expected_return)
-      else
+      (* Attempt to cast the value. If we can't cast, report an error.
+       * Note that cast_value will produce the necessary error. *)
+      match cast_value new_ctx span value actual_return_type expected_return with
+      | (out_ctx, Error _) ->
+        (out_ctx, out_list, expected_return)
+      | (out_ctx, Ok coerced_value) ->
         (* Otherwise, emit a return. *)
         let instr =
-          match value with
+          match coerced_value with
           | None -> ReturnVoid
           | Some v -> Return (expected_return, v)
         in
-        (new_ctx, (out_list @ [(span, instr)]), expected_return)
+        (out_ctx, (out_list @ [(span, instr)]), expected_return)
     end
   (* If we reach variable declarations, then each one will create a new context. *)
   | Ast.VarDecl decls ->
@@ -283,12 +281,13 @@ and compile_expr context = function
                       in
                       ((emit_error new_ctx span error_msg), out_list, false)
                     in
-                    if not (can_cast_type typ param_type) then
-                      cast_failure
-                    else
-                      match value_opt with
+                    match cast_value context span value_opt typ param_type with
+                    | (out_ctx, Error _) ->
+                      (out_ctx, out_list, false)
+                    | (out_ctx, Ok coerced_value_opt) ->
+                      match coerced_value_opt with
                       | None -> cast_failure
-                      | Some value -> (context, (out_list @ [value]), success)
+                      | Some value -> (out_ctx, (out_list @ [value]), success)
                   in
                   let (new_ctx, compiled_args, success) =
                     List.fold_left check_one_pair (context, [], true) params_to_args
@@ -332,10 +331,22 @@ and emit_error context span error_msg =
   let error = (span, Sema.Error, error_msg) in
   {context with errors = context.errors @ [error]}
 
+and cast_value context span value_opt from_type to_type =
+  if from_type = to_type then
+    (context, Ok value_opt)
+  else
+    match (from_type, to_type) with
+    | _ ->
+      let left = string_of_type from_type in
+      let right = string_of_type to_type in
+      let error_msg = "Cannot return " ^ left ^ " from a function declared to return " ^ right ^ "." in
+      let new_ctx = emit_error context span error_msg in
+      (new_ctx, Error ())
+
 (** Checks if a can be casted to b. *)
-and can_cast_type a b =
-  (* TODO: Check classes for inheritance *)
-  (* TODO: Support casts from primitive types *)
-  match (a, b) with
-  (* | (IntType, DoubleType) -> true *)
-  | _ -> a == b
+(* and can_cast_type a b =
+   (* TODO: Check classes for inheritance *)
+   (* TODO: Support casts from primitive types *)
+   match (a, b) with
+   (* | (IntType, DoubleType) -> true *)
+   | _ -> a == b *)
