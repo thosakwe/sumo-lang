@@ -83,7 +83,7 @@ stmt:
   | b = block { Ast.Block ($loc, b) }
   | e = expr { Ast.Expr ($loc, e) }
   | RETURN; v = option(expr) { Ast.Return ($loc, v) }
-  | m = mut; d = separated_list(COMMA, var_decl)
+  | m = final; d = separated_list(COMMA, var_decl)
     {
       let expand_decl (span, name, value) =
         (span, m, name, value)
@@ -103,9 +103,9 @@ var_decl:
   n = id; EQUALS; v = expr { ($loc, n, v) }
 ;
 
-mut:
-  | VAR { true }
-  | FINAL { false }
+final:
+  | FINAL { true }
+  | VAR { false }
 ;
 
 expr:
