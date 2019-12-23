@@ -80,7 +80,6 @@ let string_of_error e =
   (string_of_error_level level)
   ^ ": "
   ^ (string_of_position start)
-  ^ (string_of_error_level level)
   ^ ": "
   ^ msg
 
