@@ -46,6 +46,12 @@ rule read = parse
   | '+' { PLUS }
   | '-' { MINUS }
 
+  | "*=" { TIMES_EQUALS }
+  | "/=" { DIV_EQUALS }
+  | "%=" { MOD_EQUALS }
+  | "+=" { PLUS_EQUALS }
+  | "-=" { MINUS_EQUALS }
+
   | "external" { EXTERNAL }
   | "final" { FINAL }
   | "fn" { FN }

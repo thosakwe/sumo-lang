@@ -3,8 +3,8 @@
 %token EXTERNAL FINAL FN RETURN THIS VAR
 
 %token TIMES DIV MOD PLUS MINUS
+%token TIMES_EQUALS DIV_EQUALS MOD_EQUALS PLUS_EQUALS MINUS_EQUALS
 
-%token <Ast.assign_op> ASSIGN_OP
 %token <Visibility.t> VIS
 %token <string> C_NAME
 
@@ -17,6 +17,8 @@
 
 %left TIMES DIV MOD
 %left PLUS MINUS
+%left TIMES_EQUALS DIV_EQUALS MOD_EQUALS
+%left PLUS_EQUALS MINUS_EQUALS
 
 %start <Ast.compilation_unit> compilation_unit
 
@@ -100,10 +102,6 @@ stmt:
 assign_target:
   | n = id { Ast.VariableTarget ($loc, n) }
 
-assign_op:
-  | v = ASSIGN_OP { v }
-  | EQUALS { Ast.Equals }
-
 var_decl:
   n = id EQUALS v = expr { ($loc, n, v) }
 
@@ -119,13 +117,18 @@ expr:
   | v = BOOL { Ast.BoolLiteral ($loc, v) }
   | v = id { Ast.Ref ($loc, v) }
   | LPAREN v = expr RPAREN { Ast.Paren ($loc, v) }
-  | t = assign_target o = assign_op v = expr { Ast.Assign ($loc, t, o, v) }
   | t = expr LPAREN a = separated_list(COMMA, expr) RPAREN { Ast.Call ($loc, t, a) }
   | l = expr TIMES r = expr { Ast.Binary ($loc, l, Ast.Multiply, r) }
   | l = expr MOD r = expr { Ast.Binary ($loc, l, Ast.Modulo, r) }
   | l = expr DIV r = expr { Ast.Binary ($loc, l, Ast.Divide, r) }
   | l = expr PLUS r = expr { Ast.Binary ($loc, l, Ast.Plus, r) }
   | l = expr MINUS r = expr { Ast.Binary ($loc, l, Ast.Minus, r) }
+  | t = assign_target EQUALS v = expr { Ast.Assign ($loc, t, Ast.Equals, v) }
+  | t = assign_target TIMES_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Multiply), v) }
+  | t = assign_target DIV_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Divide), v) }
+  | t = assign_target MOD_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Modulo), v) }
+  | t = assign_target PLUS_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Plus), v) }
+  | t = assign_target MINUS_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Minus), v) }
 
 
 id:
