@@ -40,6 +40,12 @@ rule read = parse
   | ';' { SEMI }
   | '?' { QUESTION }
 
+  | '*' { TIMES }
+  | '/' { DIV }
+  | '%' { MOD }
+  | '+' { PLUS }
+  | '-' { MINUS }
+
   | "external" { EXTERNAL }
   | "final" { FINAL }
   | "fn" { FN }

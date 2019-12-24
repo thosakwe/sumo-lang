@@ -17,6 +17,8 @@ and assign_target =
   | IndexTarget of span * expr * expr *)
 and assign_op =
   | Equals
+  (* | BinaryAssign of binary_op *)
+  (* TODO: Binary assigns *)
 and block = stmt list
 and typ =
   | TypeRef of span * string
@@ -29,6 +31,16 @@ and expr =
   | Paren of span * expr
   | Call of span * expr * (expr list)
   | Assign of span * assign_target * assign_op * expr
+  | Binary of span * expr * binary_op * expr
+  (* TODO: Postfix, prefix increment *)
+  (* TODO: Prefix plus/minus *)
+and binary_op =
+  | Multiply
+  | Divide
+  | Modulo
+  | Plus
+  | Minus
+  (* TODO: Bitwise, boolean operators *)
 and param =
   | ThisParam of span * string
   | RegularParam of span * string * typ
