@@ -4,6 +4,7 @@ type context =
   {
     errors: Sema.error list;
     builder: Llvm.llbuilder;
+    func: Llvm.llvalue option;
     llvm_context : Llvm.llcontext;
     llvm_module: Llvm.llmodule;
     scope: Llvm.llvalue Scope.t;
@@ -45,6 +46,7 @@ let rec compile_universe module_path errors universe =
             let llvm_function_type = compile_function_signature llvm_context params returns in
             let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
             out_list @ [(name, value)]
+        | ParamSymbol _ -> out_list
       in
       List.fold_left llvm_of_pair [] pairs
     in
@@ -60,6 +62,7 @@ let rec compile_universe module_path errors universe =
       errors;
       llvm_context;
       llvm_module;
+      func = None;
       builder = Llvm.builder llvm_context;
       scope = Scope.RootScope map_of_all_symbols;
     }
@@ -99,7 +102,12 @@ and compile_function context (name, params, returns, instrs) =
   let entry_block = Llvm.entry_block func in
   let new_builder = Llvm.builder context.llvm_context in
   Llvm.position_at_end entry_block new_builder;
-  let new_context = { context with scope = new_scope; builder = new_builder } in
+  let new_context = { 
+    context with
+    scope = new_scope;
+    builder = new_builder;
+    func = Some func;
+  } in
   let final_ctx =
     let compile_one_instr context (span, instr) =
       let (new_ctx, _) = compile_instr context span instr in
@@ -117,7 +125,9 @@ and compile_instr context span = function
   | ReturnVoid ->
     (context, Llvm.build_ret_void context.builder)
 
-and compile_value context span = function
+and compile_value context span value = 
+  let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
+  match value with
   | IntLiteral v -> (context, Llvm.const_int (Llvm.i64_type context.llvm_context) v)
   | DoubleLiteral v -> (context, Llvm.const_float (Llvm.double_type context.llvm_context) v)
   | BoolLiteral v -> 
@@ -135,18 +145,29 @@ and compile_value context span = function
     (new_ctx, new_value)
   | VarGet (name, _) ->
     if not (Scope.mem name context.scope) then
-      (* let error_msg = Scope.does_not_exist name in *)
       let error_msg =
         "LLVM compiler error: The SSA form emitted VarGet \""
         ^ name
         ^ "\", but the current context has no variable with that name."
       in
       let new_ctx = emit_error context span error_msg in
-      (new_ctx, Llvm.const_null (Llvm.i64_type context.llvm_context))
+      (new_ctx, error_value)
     else
       let target = Scope.find name context.scope in
-      (* (context, Llvm.build_load target name context.builder) *)
-      (context, target)
+      (context, Llvm.build_load target name context.builder)
+  | ParamGet (index, name, _) -> begin
+      match context.func with
+      | Some llvm_func -> (context, Llvm.param llvm_func index)
+      | None -> 
+        let error_msg =
+          "LLVM compiler error: The SSA form emitted ParamGet \""
+          ^ name
+          ^ "\", but the current context does not exist within a function."
+        in
+        let new_ctx = emit_error context span error_msg in
+        (new_ctx, error_value)
+    end
+  (* (context, target) *)
   (* Create a new scope with the given value. *)
   | VarSet (name, typ, value) ->
     let llvm_type = compile_type context.llvm_context typ in

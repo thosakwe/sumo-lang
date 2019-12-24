@@ -17,6 +17,7 @@ and symbol =
   (* | FuncSymbol of string * typ * (typ list) * (instr list) *)
   | FuncSymbol of bool * string * ((string * typ) list) * typ * Ast.decl
   | VarSymbol of bool * string * typ
+  | ParamSymbol of string * int * typ
   | TypeSymbol of typ
   (* | ImportedSymbol of (sumo_module ref) * string *)
 and instr =
@@ -35,6 +36,7 @@ and value =
   | DoubleLiteral of float
   | BoolLiteral of bool
   | VarGet of string * typ
+  | ParamGet of int * string * typ
   | VarSet of string * typ * value
   | CastIntToDouble of value
   | CastDoubleToInt of value
@@ -50,6 +52,7 @@ let type_of_value = function
   | DoubleLiteral _ -> DoubleType
   | BoolLiteral _ -> BoolType
   | VarGet (_, typ) -> typ
+  | ParamGet (_, _, typ) -> typ
   | VarSet (_, typ, _) -> typ
   | CastIntToDouble _ -> DoubleType
   | CastDoubleToInt _ -> IntType
@@ -73,6 +76,9 @@ and string_of_symbol = function
   | VarSymbol (final, name, typ) -> 
     let mut_string =  if final then "final " else "var " in
     mut_string ^ name ^ ": " ^ (string_of_type typ)
+  | ParamSymbol (name, index, typ) -> 
+    let mut_string = string_of_int index in
+    "param " ^ mut_string ^ ": " ^ name ^ ": " ^ (string_of_type typ)
 (* | ImportedSymbol (m, name) ->
    let {path; _} = !m in
    path ^ "::" ^ name *)
@@ -96,6 +102,7 @@ and string_of_value = function
   | DoubleLiteral v -> string_of_float v
   | BoolLiteral v -> string_of_bool v
   | VarGet (name, typ) -> "get " ^ name ^ ": " ^ (string_of_type typ)
+  | ParamGet (index, _, typ) -> "param " ^ (string_of_int index) ^ ": " ^ (string_of_type typ)
   | VarSet (name, typ, value) ->
     "set " ^ name ^ ": " ^ (string_of_type typ)
     ^ " = " ^ (string_of_value value)

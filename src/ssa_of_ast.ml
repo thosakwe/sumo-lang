@@ -125,10 +125,13 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
            List.combine param_names params
            in *)
         let pair_list =
-          let pair_of_combined (name, typ) =
-            (name, VarSymbol (false, name, typ))
+          let fold_param (out_list, index) (name, typ) =
+            let symbol = ParamSymbol (name, index, typ) in
+            let result = (name, symbol) in
+            (out_list @ [result], index + 1)
           in
-          List.map pair_of_combined params
+          let (folded_params, _) = List.fold_left fold_param ([], 0) params in
+          folded_params
         in
         let pair_seq = List.to_seq pair_list in
         let child_map = StringMap.of_seq pair_seq in
@@ -235,6 +238,7 @@ and compile_expr context = function
         in
         match Scope.find name context.scope with
         | VarSymbol (_, name, typ) -> (context, typ, Some (VarGet (name, typ)))
+        | ParamSymbol (name, index, typ) -> (context, typ, Some (ParamGet (index, name, typ)))
         | _ as sym -> not_a_value sym
     end
   | Ast.Assign (span, target, op, value) -> compile_assign context (span, target, op, value)
