@@ -92,8 +92,8 @@ stmt:
   | RETURN v = option(expr) { Ast.Return ($loc, v) }
   | m = final d = separated_list(COMMA, var_decl)
     {
-      let expand_decl (span, name, value) =
-        (span, m, name, value)
+      let expand_decl (span, t, name, value) =
+        (span, m, t, name, value)
       in
       Ast.VarDecl (List.map expand_decl d)
     }
@@ -103,8 +103,9 @@ assign_target:
   | n = id { Ast.VariableTarget ($loc, n) }
 
 var_decl:
-  n = id EQUALS v = expr { ($loc, n, v) }
+  n = id t = option(var_type) EQUALS v = expr { ($loc, t, n, v) }
 
+var_type: COLON t = typ { t }
 
 final:
   | FINAL { true }

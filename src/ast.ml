@@ -10,7 +10,7 @@ and stmt =
   | Expr of span * expr
   | VarDecl of var_decl list
   | Return of span * (expr option)
-and var_decl = span * bool * string * expr
+and var_decl = span * bool * (typ option) * string * expr
 and assign_target =
   | VariableTarget of span * string
   (* | FieldTarget of span * expr * string
