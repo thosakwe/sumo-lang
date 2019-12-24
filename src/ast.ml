@@ -14,11 +14,10 @@ and var_decl = span * bool * string * expr
 and assign_target =
   | VariableTarget of span * string
   (* | FieldTarget of span * expr * string
-  | IndexTarget of span * expr * expr *)
+     | IndexTarget of span * expr * expr *)
 and assign_op =
   | Equals
-  (* | BinaryAssign of binary_op *)
-  (* TODO: Binary assigns *)
+  | BinaryAssign of binary_op
 and block = stmt list
 and typ =
   | TypeRef of span * string
@@ -33,7 +32,7 @@ and expr =
   | Assign of span * assign_target * assign_op * expr
   | Binary of span * expr * binary_op * expr
   (* TODO: Postfix, prefix increment *)
-  (* TODO: Prefix plus/minus *)
+(* TODO: Prefix plus/minus *)
 and binary_op =
   | Multiply
   | Divide
@@ -72,3 +71,6 @@ let string_of_binary_op = function
   | Modulo -> "%"
   | Plus -> "+"
   | Minus -> "-"
+
+let expr_of_assign_target = function
+  | VariableTarget (span, name) -> Ref (span, name)

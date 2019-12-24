@@ -367,6 +367,12 @@ and compile_expr context = function
 
 (** Compiles an assignment expression. *)
 and compile_assign context = function
+  (* If we get a +=, *=, etc. just desugar it. *)
+  | (span, target, (Ast.BinaryAssign op), rhs) ->
+    let target_expr = Ast.expr_of_assign_target target in
+    let new_rhs = Ast.Binary (span, target_expr, op, rhs) in
+    let new_assign = (span, target, Ast.Equals, new_rhs) in
+    compile_assign context new_assign
   (* To re-assign a local variable, it must exist in the context, and be reassignable.
    * In addition, we must be able to cast the value to whatever type is expected. *)
   | (span, Ast.VariableTarget(_, name), Ast.Equals, rhs) -> begin
