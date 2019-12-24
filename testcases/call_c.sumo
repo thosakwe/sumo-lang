@@ -1,6 +1,6 @@
 external #sumo_glue_putc putc (ch: int) : void
 
-fn main() : void {
+fn main() : int {
   putc(72)
   putc(101)
   putc(108)
@@ -13,5 +13,5 @@ fn main() : void {
   putc(108)
   putc(100)
   putc(10)
-  return
+  return 0
 }
