@@ -37,7 +37,9 @@ and value =
   | BoolLiteral of bool
   | VarGet of string * typ
   | ParamGet of int * string * typ
+  | VarCreate of string * typ
   | VarSet of string * typ * value
+  | Multi of value list
   | CastIntToDouble of value
   | CastDoubleToInt of value
   | IntArithmetic of value * Ast.binary_op * value
@@ -48,18 +50,28 @@ let default_universe =
     modules = StringMap.empty
   }
 
-let type_of_value = function
+let rec type_of_value = function
   | FunctionCall (typ, _, _) -> typ
   | IntLiteral _ -> IntType
   | DoubleLiteral _ -> DoubleType
   | BoolLiteral _ -> BoolType
   | VarGet (_, typ) -> typ
   | ParamGet (_, _, typ) -> typ
+  | VarCreate (_, typ) -> typ
   | VarSet (_, typ, _) -> typ
   | CastIntToDouble _ -> DoubleType
   | CastDoubleToInt _ -> IntType
   | IntArithmetic _ -> IntType
   | DoubleArithmetic _ -> DoubleType
+  | Multi items -> begin
+      let rec f =
+        function
+        | [] -> raise (Invalid_argument "empty list in Multi")
+        | [single] -> type_of_value single
+        | _ :: rest -> f rest
+      in
+      f items
+    end
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -107,6 +119,7 @@ and string_of_value = function
   | BoolLiteral v -> string_of_bool v
   | VarGet (name, typ) -> "get " ^ name ^ ": " ^ (string_of_type typ)
   | ParamGet (index, _, typ) -> "param " ^ (string_of_int index) ^ ": " ^ (string_of_type typ)
+  | VarCreate (name, typ) ->  "create " ^ name ^ ": " ^ (string_of_type typ)
   | VarSet (name, typ, value) ->
     "set " ^ name ^ ": " ^ (string_of_type typ)
     ^ " = " ^ (string_of_value value)
@@ -125,6 +138,7 @@ and string_of_value = function
     let op_str = Ast.string_of_binary_op op in
     let right_str = string_of_value right in
     left_str ^ " " ^ op_str ^ " " ^ right_str
+  | Multi items -> String.concat "\n" (List.map string_of_value items)
 
 let dump_module _ module_ref =
   let m = !module_ref in

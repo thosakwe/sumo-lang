@@ -133,6 +133,13 @@ and compile_value context span value =
   | BoolLiteral v -> 
     let value = if v then 1 else 0 in
     (context, Llvm.const_int (Llvm.i8_type context.llvm_context) value)
+  | Multi items -> 
+    let fold_item (context, values) value =
+      let (new_ctx, llvm_value) = compile_value context span value in
+      (new_ctx, values @ [llvm_value])
+    in
+    let (new_ctx, llvm_values) = List.fold_left fold_item (context, []) items in
+    (new_ctx, List.hd (List.rev llvm_values))
   | CastIntToDouble inner ->
     let (new_ctx, llvm_inner) = compile_value context span inner in
     let double_type = Llvm.double_type context.llvm_context in
@@ -193,15 +200,34 @@ and compile_value context span value =
         let new_ctx = emit_error context span error_msg in
         (new_ctx, error_value)
     end
-  (* (context, target) *)
   (* Create a new scope with the given value. *)
-  | VarSet (name, typ, value) ->
+  | VarCreate (name, typ) -> 
     let llvm_type = compile_type context.llvm_context typ in
-    let (new_ctx, llvm_value) = compile_value context span value in
-    let variable = Llvm.build_alloca llvm_type name new_ctx.builder in
-    let _ = Llvm.build_store llvm_value variable new_ctx.builder in
+    let variable = Llvm.build_alloca llvm_type name context.builder in
     let new_scope = Scope.replace name variable context.scope in
-    ({ new_ctx with scope = new_scope }, variable)
+    ({ context with scope = new_scope }, variable)
+  (* Simply assign to a pointer. *)
+  | VarSet (name, _, value) ->
+    if not (Scope.mem name context.scope) then
+      let error_msg =
+        "LLVM compiler error: The SSA form emitted VarSet \""
+        ^ name
+        ^ "\", but the current context has no variable with that name."
+      in
+      let new_ctx = emit_error context span error_msg in
+      (new_ctx, error_value)
+    else
+      (* let llvm_type = compile_type context.llvm_context typ in *)
+      let (new_ctx, llvm_value) = compile_value context span value in
+      (* let variable = Llvm.build_alloca llvm_type name new_ctx.builder in *)
+      let variable = Scope.find name context.scope in
+      let _ = Llvm.build_store llvm_value variable new_ctx.builder in
+      (* TODO: LLVM causes a segfault if we try to produce a "load" of the new var.
+       * For some reason, the return type is always void. *)
+      (* let result = Llvm.build_load variable "tmp" new_ctx.builder in *)
+      let result = variable in
+      let new_scope = Scope.replace name result context.scope in
+      ({ new_ctx with scope = new_scope }, variable)
   | FunctionCall (returns, name, args) ->
     match Llvm.lookup_function name context.llvm_module with
     | None ->

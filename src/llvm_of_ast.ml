@@ -7,8 +7,8 @@ type result =
 (**  Top-level function that joins together Sema and LLVM. *)
 let compile_single_ast path c_unit =
   let (universe, ssa_context) = Ssa_of_ast.compile_single_ast path c_unit in
-  let llvm_context = Llvm_of_ssa.compile_universe path ssa_context.errors universe in
   (* Ssa.dump_universe universe; *)
+  let llvm_context = Llvm_of_ssa.compile_universe path ssa_context.errors universe in
   { errors = llvm_context.errors; llvm_module = llvm_context.llvm_module }
 (* match llvm_context.errors with
    | [] ->

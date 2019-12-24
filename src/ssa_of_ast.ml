@@ -203,8 +203,12 @@ and compile_stmt (context, out_list, expected_return) = function
           let ssa_name = name in
           let sym = VarSymbol (final, ssa_name, typ) in
           let new_scope = Scope.add name sym context.scope in
-          let instr = Value (VarSet (ssa_name, typ, value)) in
-          (({ new_ctx with scope = new_scope }), (out_list @ [(span, instr)]))
+          let new_instrs = [
+            (span, Value (VarCreate (ssa_name, typ)));
+            (span, Value (VarSet (ssa_name, typ, value)));
+          ]
+          in
+          (({ new_ctx with scope = new_scope }), (out_list @ new_instrs))
         end
     in
     let (new_ctx, new_out_list) = List.fold_left compile_var_decl (context, out_list) decls in
@@ -406,8 +410,12 @@ and compile_assign context = function
                         in
                         ((emit_error new_ctx span error_msg), expected_type, coerced_value_opt)
                       | Some coerced_value ->
-                        let result_value = VarSet (name, expected_type, coerced_value) in
-                        (new_ctx, expected_type, Some result_value)
+                        let items = [
+                          VarSet (name, expected_type, coerced_value);
+                          VarGet (name, expected_type);
+                        ]
+                        in
+                        (new_ctx, expected_type, Some (Multi items))
                     end
                 end
           end
