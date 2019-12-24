@@ -166,8 +166,15 @@ and compile_stmt (context, out_list, expected_return) = function
       (* Attempt to cast the value. If we can't cast, report an error.
        * Note that cast_value will produce the necessary error. *)
       match cast_value new_ctx span value actual_return_type expected_return with
-      | (out_ctx, Error _) ->
-        (out_ctx, out_list, expected_return)
+      | (_, Error _) ->
+        let error_msg =
+          "Cannot return a value of type "
+          ^ string_of_type actual_return_type
+          ^ " from a function declared to return "
+          ^ string_of_type expected_return
+          ^ "."
+        in
+        ((emit_error new_ctx span error_msg), out_list, expected_return)
       | (out_ctx, Ok coerced_value) ->
         (* Otherwise, emit a return. *)
         let instr =
