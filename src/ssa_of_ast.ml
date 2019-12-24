@@ -218,11 +218,11 @@ and compile_stmt (context, out_list, expected_return) = function
               | Some coerced_value ->
                 (* TODO: SSA variables - get a unique name for each *)
                 let ssa_name = name in
-                let sym = VarSymbol (final, ssa_name, typ) in
+                let sym = VarSymbol (final, ssa_name, target_type) in
                 let new_scope = Scope.add name sym context.scope in
                 let new_instrs = [
-                  (span, Value (VarCreate (ssa_name, typ)));
-                  (span, Value (VarSet (ssa_name, typ, coerced_value)));
+                  (span, Value (VarCreate (ssa_name, target_type)));
+                  (span, Value (VarSet (ssa_name, target_type, coerced_value)));
                 ]
                 in
                 (({ ctx_after_cast with scope = new_scope }), (out_list @ new_instrs))
