@@ -145,7 +145,8 @@ and compile_value context span = function
       (new_ctx, Llvm.const_null (Llvm.i64_type context.llvm_context))
     else
       let target = Scope.find name context.scope in
-      (context, Llvm.build_load target name context.builder)
+      (* (context, Llvm.build_load target name context.builder) *)
+      (context, target)
   (* Create a new scope with the given value. *)
   | VarSet (name, typ, value) ->
     let llvm_type = compile_type context.llvm_context typ in
