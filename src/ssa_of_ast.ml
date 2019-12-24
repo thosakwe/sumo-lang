@@ -300,7 +300,7 @@ and compile_expr context = function
                   else
                     (* Everything is okay, emit the call. *)
                     let value = FunctionCall (returns, func_name, compiled_args) in
-                    (new_ctx, UnknownType, Some value)
+                    (new_ctx, returns, Some value)
               end
             | _ as sym ->  
               let error_msg = "The name \"" ^ name ^ "\" resolves to " ^ (string_of_symbol sym) ^ ", which is not a value." in
