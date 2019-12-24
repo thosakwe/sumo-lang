@@ -315,6 +315,55 @@ and compile_expr context = function
         let new_ctx = emit_error context span error_msg in
         (new_ctx, UnknownType, None)
     end
+  (* Compile both the LHS and RHS, and then try to combine them. *)
+  | Ast.Binary (span, lhs_ast, op, rhs_ast) -> begin
+      let (ctx_after_left, lhs_type, lhs_opt) = compile_expr context lhs_ast in
+      match lhs_opt with
+      | None ->
+        let error_msg =
+          "The left hand side of this expression does not produce a valid value." 
+        in
+        let new_ctx = emit_error ctx_after_left span error_msg in
+        (new_ctx, UnknownType, None)
+      (* Check if the LHS type has the given operator. *)
+      | Some lhs -> begin
+          let (ctx_after_right, rhs_type, rhs_opt) = compile_expr ctx_after_left rhs_ast in
+          match lhs_type with
+          (* For native numbers, both operands must be the same type.
+           * If this condition is met, emit a corresponding instruction. *)
+          | IntType | DoubleType -> begin
+              match cast_value ctx_after_right span rhs_opt rhs_type lhs_type with
+              | (new_ctx, Error _) -> (new_ctx, UnknownType, None)
+              | (ctx_after_cast, Ok coerced_rhs_opt) -> begin
+                  match coerced_rhs_opt with
+                  | None -> 
+                    let error_msg =
+                      "The right hand side of this expression does not produce a valid value." 
+                    in
+                    let new_ctx = emit_error ctx_after_cast span error_msg in
+                    (new_ctx, UnknownType, None)
+                  | Some rhs -> begin
+                      let value = 
+                        match lhs_type with
+                        | IntType -> IntArithmetic (lhs, op, rhs)
+                        | _ -> DoubleArithmetic (lhs, op, rhs)
+                      in
+                      (ctx_after_cast, lhs_type, Some value)
+                    end
+                end
+            end
+          | _ ->
+            let error_msg =
+              "The type "
+              ^ string_of_type lhs_type
+              ^ " has no '"
+              ^ (Ast.string_of_binary_op op)
+              ^ "' operator."
+            in
+            let new_ctx = emit_error ctx_after_right span error_msg in
+            (new_ctx, UnknownType, None)
+        end
+    end
 
 (** Compiles an assignment expression. *)
 and compile_assign context = function

@@ -40,6 +40,8 @@ and value =
   | VarSet of string * typ * value
   | CastIntToDouble of value
   | CastDoubleToInt of value
+  | IntArithmetic of value * Ast.binary_op * value
+  | DoubleArithmetic of value * Ast.binary_op * value
 
 let default_universe =
   {
@@ -56,6 +58,8 @@ let type_of_value = function
   | VarSet (_, typ, _) -> typ
   | CastIntToDouble _ -> DoubleType
   | CastDoubleToInt _ -> IntType
+  | IntArithmetic _ -> IntType
+  | DoubleArithmetic _ -> DoubleType
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -115,6 +119,12 @@ and string_of_value = function
     "cast<double->int>(" ^ (string_of_value inner) ^ ")"
   | CastIntToDouble inner ->
     "cast<int->double>(" ^ (string_of_value inner) ^ ")"
+  | IntArithmetic (left, op, right)
+  | DoubleArithmetic (left, op, right) ->
+    let left_str = string_of_value left in
+    let op_str = Ast.string_of_binary_op op in
+    let right_str = string_of_value right in
+    left_str ^ " " ^ op_str ^ " " ^ right_str
 
 let dump_module _ module_ref =
   let m = !module_ref in

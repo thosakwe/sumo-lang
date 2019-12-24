@@ -65,3 +65,10 @@ let rec innermost_expr = function
     let new_args = List.map innermost_expr args in
     Call (span, new_target, new_args)
   | _ as self -> self
+
+let string_of_binary_op = function
+  | Multiply -> "*"
+  | Divide -> "/"
+  | Modulo -> "%"
+  | Plus -> "+"
+  | Minus -> "-"
