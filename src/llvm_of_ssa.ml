@@ -81,7 +81,20 @@ let rec compile_universe module_path errors universe =
 and compile_function context (name, params, returns, instrs) =
   let llvm_function_type = compile_function_signature context.llvm_context params returns in
   let func = Llvm.define_function name llvm_function_type context.llvm_module in
-  let new_scope_map = StringMap.add name func StringMap.empty in
+
+  (* Create a new scope, with the function name and params injected. *)
+  let new_scope_map =
+    let fold_param (map, index) (name, _) =
+      let value = Llvm.param func index in
+      let new_map = StringMap.add name value map in
+      (new_map, index + 1)
+    in
+
+    let (map, _) = List.fold_left fold_param (StringMap.empty, 0) params in
+    StringMap.add name func map
+  in
+
+
   let new_scope = Scope.ChildScope (context.scope, new_scope_map) in
   let entry_block = Llvm.entry_block func in
   let new_builder = Llvm.builder context.llvm_context in
@@ -122,7 +135,12 @@ and compile_value context span = function
     (new_ctx, new_value)
   | VarGet (name, _) ->
     if not (Scope.mem name context.scope) then
-      let error_msg = Scope.does_not_exist name in
+      (* let error_msg = Scope.does_not_exist name in *)
+      let error_msg =
+        "LLVM compiler error: The SSA form emitted VarGet \""
+        ^ name
+        ^ "\", but the current context has no variable with that name."
+      in
       let new_ctx = emit_error context span error_msg in
       (new_ctx, Llvm.const_null (Llvm.i64_type context.llvm_context))
     else
@@ -165,7 +183,8 @@ and compile_value context span = function
 and compile_function_signature llvm_context params returns =
   let llvm_params =
     let llvm_of_param p = compile_type llvm_context p in
-    List.map llvm_of_param params
+    let param_types = List.map (function (_, t) -> t) params in
+    List.map llvm_of_param param_types
   in
   let llvm_returns = compile_type llvm_context returns in
   Llvm.function_type llvm_returns (Array.of_list llvm_params)

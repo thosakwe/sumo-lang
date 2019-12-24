@@ -1,0 +1,7 @@
+fn identity(x: int) : int {
+  return x
+}
+
+fn main() : int {
+  return identity(45)
+}

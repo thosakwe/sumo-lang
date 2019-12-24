@@ -1,12 +1,5 @@
 open Ssa
-
-type context =
-  {
-    this_module: string;
-    errors: Sema.error list;
-    scope: symbol Scope.t;
-    universe: universe;
-  }
+open Ssa_context
 
 let rec compile_single_ast path c_unit =
   let (context, universe) = load_ast_into_universe (Ssa.default_universe) path c_unit in
@@ -92,12 +85,12 @@ and load_ast_into_universe universe path c_unit =
 
 and compile_function_signature context (_, params, returns) =
   let compile_one_type (context, type_list) = function
-    | Ast.RegularParam (_, _, typ) -> 
+    | Ast.RegularParam (_, name, typ) -> 
       let (new_ctx, result) = compile_type context typ in
-      (new_ctx, type_list @ [result])
+      (new_ctx, type_list @ [(name, result)])
     (* TODO: Handle this.x params *)
-    | Ast.ThisParam _ ->
-      (context, type_list @ [UnknownType])
+    | Ast.ThisParam (_, name) ->
+      (context, type_list @ [(name, UnknownType)])
   in
   let (ctx_after_params, param_types) = List.fold_left compile_one_type (context, []) params in
   let (new_ctx, return_type) = compile_type ctx_after_params returns in
@@ -126,16 +119,16 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
     (* Make a new scope+context, with all params injected as values. *)
     let ctx_with_params =
       let new_scope =
-        let combined_list =
-          let (_, ast_params, _) = fsig in
-          let param_names = List.map Ast.name_of_param ast_params in
-          List.combine param_names params
-        in
+        (* let combined_list =
+           let (_, ast_params, _) = fsig in
+           let param_names = List.map Ast.name_of_param ast_params in
+           List.combine param_names params
+           in *)
         let pair_list =
           let pair_of_combined (name, typ) =
             (name, VarSymbol (false, name, typ))
           in
-          List.map pair_of_combined combined_list
+          List.map pair_of_combined params
         in
         let pair_seq = List.to_seq pair_list in
         let child_map = StringMap.of_seq pair_seq in
@@ -272,13 +265,15 @@ and compile_expr context = function
                 else
                   (* If we have the correct number of args, then perform type-checking. *)
                   let params_to_args = List.combine params args in
-                  let check_one_pair (context, out_list, success) (param_type, arg) =
+                  let check_one_pair (context, out_list, success) ((name, param_type), arg) =
                     (* The type-check only fails if we reach a cast failure. *)
                     let (new_ctx, typ, value_opt) = compile_expr context arg in
                     let cast_failure = 
                       let error_msg =
                         "Cannot cast argument of type " ^ (string_of_type typ)
-                        ^ " to type " ^ (string_of_type param_type) ^ "."
+                        ^ " to type " ^ (string_of_type param_type)
+                        ^ " for argument \"" ^ name
+                        ^ "\"."
                       in
                       ((emit_error new_ctx span error_msg), out_list, false)
                     in
