@@ -143,6 +143,32 @@ and compile_value context span value =
     let int_type = Llvm.i64_type context.llvm_context in
     let new_value = Llvm.build_fptosi llvm_inner int_type "tmp" context.builder in
     (new_ctx, new_value)
+  | IntArithmetic (lhs, op, rhs) -> begin
+      let (ctx_after_lhs, llvm_lhs) = compile_value context span lhs in
+      let (ctx_after_rhs, llvm_rhs) = compile_value ctx_after_lhs span rhs in
+      let f = match op with
+        | Ast.Multiply -> Llvm.build_add
+        | Ast.Divide -> Llvm.build_sdiv
+        | Ast.Modulo -> Llvm.build_srem
+        | Ast.Plus -> Llvm.build_add
+        | Ast.Minus -> Llvm.build_sub
+      in
+      let result = f llvm_lhs llvm_rhs "tmp" context.builder in
+      (ctx_after_rhs, result)
+    end
+  | DoubleArithmetic (lhs, op, rhs) -> begin
+      let (ctx_after_lhs, llvm_lhs) = compile_value context span lhs in
+      let (ctx_after_rhs, llvm_rhs) = compile_value ctx_after_lhs span rhs in
+      let f = match op with
+        | Ast.Multiply -> Llvm.build_fadd
+        | Ast.Divide -> Llvm.build_fdiv
+        | Ast.Modulo -> Llvm.build_frem
+        | Ast.Plus -> Llvm.build_fadd
+        | Ast.Minus -> Llvm.build_fsub
+      in
+      let result = f llvm_lhs llvm_rhs "tmp" context.builder in
+      (ctx_after_rhs, result)
+    end
   | VarGet (name, _) ->
     if not (Scope.mem name context.scope) then
       let error_msg =
