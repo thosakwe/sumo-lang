@@ -2,4 +2,5 @@ fn main() : int {
   {
     return 36
   }
+  return 24
 }

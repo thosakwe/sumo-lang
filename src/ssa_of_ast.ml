@@ -22,6 +22,7 @@ and load_ast_into_universe universe path c_unit =
       ])
     in
     {
+      block_is_dead = false;
       this_module = path;
       errors = [];
       scope = root_scope;
@@ -148,16 +149,26 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
     let func = (qualified, params, returns, instrs) in
     (ctx_after_stmts, out_list @ [func])
 
-and compile_stmt (context, out_list, expected_return) = function
+and compile_stmt (initial_context, out_list, expected_return) stmt = 
+  (* If the current block has already returned/broken, issue a warning. *)
+  let handle_dead_code span initial_context =
+    if initial_context.block_is_dead then
+      emit_error initial_context span "Dead code."
+    else initial_context
+  in
+
+  match stmt with
   (* If we get an expression, just compile it. *)
   (* TODO: Do these actually generate? *)
   | Ast.Expr (span, v) -> begin
+      let context = handle_dead_code span initial_context in
       match compile_expr context v with
       | (new_ctx, _, None) -> (new_ctx, out_list, expected_return)
       | (new_ctx, _, (Some value)) ->
         (new_ctx, out_list @ [(span, Value value)], expected_return)
     end
   | Ast.Return (span, value_opt) -> begin
+      let context = handle_dead_code span initial_context in
       let (new_ctx, actual_return_type, value) = match value_opt with
         | None -> (context, VoidType, None)
         (* If we are returning a value, compile it, and compare the resulting type. *)
@@ -186,14 +197,15 @@ and compile_stmt (context, out_list, expected_return) = function
           | None -> ReturnVoid
           | Some v -> Return (expected_return, v)
         in
-        (out_ctx, (out_list @ [(span, instr)]), expected_return)
+        ({out_ctx with block_is_dead = true}, (out_list @ [(span, instr)]), expected_return)
     end
   (* If we reach variable declarations, then each one will create a new context. *)
   | Ast.VarDecl decls ->
     (* TODO: Handle duplicate symbols *)
-    let compile_var_decl (context, out_list) (span, final, declared_type, name, expr) =
+    let compile_var_decl (initial_context, out_list) (span, final, declared_type, name, expr) =
       (* Compile the expression. If resolution fails, emit an error.
           Otherwise, inject the value in the scope. *)
+      let context = handle_dead_code span initial_context in
       let (new_ctx, typ, value_opt) = compile_expr context expr in
       match value_opt with
       | None -> 
@@ -230,10 +242,11 @@ and compile_stmt (context, out_list, expected_return) = function
             end
         end
     in
-    let (new_ctx, new_out_list) = List.fold_left compile_var_decl (context, out_list) decls in
+    let (new_ctx, new_out_list) = List.fold_left compile_var_decl (initial_context, out_list) decls in
     (new_ctx, new_out_list, expected_return)
   (* If we get a block, we need to create a new scope, AND a new block. *)
   | Ast.Block (span, stmts) -> 
+    let context = handle_dead_code span initial_context in
     let new_scope = Scope.ChildScope (context.scope, StringMap.empty) in
     let child_context = { context with scope = new_scope } in
     let compile_one_stmt (context, out_list) stmt =
@@ -242,7 +255,12 @@ and compile_stmt (context, out_list, expected_return) = function
     in
     let (ctx_after_stmts, new_out_list) = List.fold_left compile_one_stmt (child_context, out_list) stmts in
     let (name, new_namer) = Namer.next_name "block" ctx_after_stmts.namer in
-    let new_ctx = { context with namer = new_namer; errors = ctx_after_stmts.errors } in
+    let new_ctx = { 
+      context with 
+      namer = new_namer; 
+      errors = ctx_after_stmts.errors ;
+      block_is_dead = context.block_is_dead || ctx_after_stmts.block_is_dead;
+    } in
     let instrs = [
       (span, Block (name, new_out_list));
       (span, Jump name);
