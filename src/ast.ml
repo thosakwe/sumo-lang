@@ -40,8 +40,10 @@ and binary_op =
   | Plus
   | Minus
   | Shift of shift_type
+  | Bitwise of bitwise_type
   (* TODO: Bitwise, boolean operators *)
 and shift_type = Left | Right
+and bitwise_type = BitwiseAnd | BitwiseXor | BitwiseOr
 and param =
   | ThisParam of span * string
   | RegularParam of span * string * typ

@@ -2,9 +2,9 @@
 %token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
 %token EXTERNAL FINAL FN RETURN THIS VAR
 
-%token TIMES DIV MOD PLUS MINUS SHL SHR
+%token TIMES DIV MOD PLUS MINUS SHL SHR BW_AND BW_XOR BW_OR
 %token TIMES_EQUALS DIV_EQUALS MOD_EQUALS PLUS_EQUALS MINUS_EQUALS
-%token SHL_EQUALS SHR_EQUALS
+%token SHL_EQUALS SHR_EQUALS BW_AND_EQUALS BW_XOR_EQUALS BW_OR_EQUALS
 
 %token <Visibility.t> VIS
 %token <string> C_NAME
@@ -129,6 +129,9 @@ expr:
   | l = expr SHL r = expr { Ast.Binary ($loc, l, (Ast.Shift Ast.Left), r) }
   | l = expr SHR r = expr { Ast.Binary ($loc, l, (Ast.Shift Ast.Right), r) }
   | t = assign_target EQUALS v = expr { Ast.Assign ($loc, t, Ast.Equals, v) }
+  | l = expr BW_AND r = expr { Ast.Binary ($loc, l, (Ast.Bitwise Ast.BitwiseAnd), r) }
+  | l = expr BW_XOR r = expr { Ast.Binary ($loc, l, (Ast.Bitwise Ast.BitwiseXor), r) }
+  | l = expr BW_OR r = expr { Ast.Binary ($loc, l, (Ast.Bitwise Ast.BitwiseOr), r) }
   | t = assign_target TIMES_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Multiply), v) }
   | t = assign_target DIV_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Divide), v) }
   | t = assign_target MOD_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Modulo), v) }
@@ -136,6 +139,9 @@ expr:
   | t = assign_target MINUS_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Minus), v) }
   | t = assign_target SHL_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Shift Ast.Left)), v) }
   | t = assign_target SHR_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Shift Ast.Right)), v) }
+  | l = expr BW_AND_EQUALS r = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseAnd)), v) }
+  | l = expr BW_XOR_EQUALS r = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseXor)), v) }
+  | l = expr BW_OR_EQUALS r = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseOr)), v) }
 
 
 id:

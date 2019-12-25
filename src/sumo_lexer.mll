@@ -39,6 +39,9 @@ rule read = parse
   | '-' { MINUS }
   | "<<" { SHL }
   | ">>" { SHR }
+  | '&' { BW_AND }
+  | '^' { BW_XOR }
+  | '|' { BW_OR }
 
   | "*=" { TIMES_EQUALS }
   | "/=" { DIV_EQUALS }
@@ -47,6 +50,9 @@ rule read = parse
   | "-=" { MINUS_EQUALS }
   | "<<=" { SHL_EQUALS }
   | ">>=" { SHR_EQUALS }
+  | "&=" { BW_AND_EQUALS }
+  | "^=" { BW_XOR_EQUALS }
+  | "|=" { BW_OR_EQUALS }
 
   | "external" { EXTERNAL }
   | "final" { FINAL }
