@@ -26,6 +26,8 @@ and instr =
   | ReturnVoid
   | Block of string * ((instr spanned) list)
   | Jump of string
+  | JumpIf of string * value
+  | PositionAtEnd of string
 and typ =
   | IntType
   | DoubleType
