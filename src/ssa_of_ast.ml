@@ -275,7 +275,7 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
     let rec compile_clauses (context, out_list) block_name = function
       | [] -> (context, out_list)
       | clause :: rest -> begin
-          match compile_if_clause ctx_after_name clause block_name expected_return with
+          match compile_if_clause ctx_after_name clause block_name if_end_name expected_return with
           | Error new_ctx -> compile_clauses (new_ctx, out_list) block_name rest
           (* We've created a new block. 
            * However, compile_block returns multiple instructions. Only take the first.
@@ -317,7 +317,10 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
       | Some else_clause ->
         let (_, else_clause_as_block) = Ast.block_of_stmt else_clause in
         let (new_ctx, instrs, _) =
-          compile_block_extra else_clause_name ctx_after_clauses expected_return (span, else_clause_as_block) true
+          let final_jump = [(span, Jump if_end_name)] in
+          compile_block_extra
+            else_clause_name ctx_after_clauses expected_return
+            (span, else_clause_as_block) true final_jump
         in
         (new_ctx, [List.hd instrs])
     in
@@ -333,7 +336,7 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
     in
     (ctx_after_else, new_out_list, expected_return)
 
-and compile_if_clause context clause name expected_return =
+and compile_if_clause context clause name if_end_name expected_return =
   (* Create a new block for this condition. 
    * Afterwards, jump to the end_label.
    * If the condition is not matched, jump to the otherwise_label. *)
@@ -359,15 +362,17 @@ and compile_if_clause context clause name expected_return =
 
       let (ctx_after_block, block_instrs, _) =
         let (_, body_block) = Ast.block_of_stmt body in
-        compile_block_extra name ctx_after_cond expected_return (span, body_block) true
+        compile_block_extra name ctx_after_cond expected_return (span, body_block) true []
       in
-      Ok (ctx_after_block, compiled_cond, block_instrs)
+      Ok (ctx_after_block, compiled_cond, block_instrs @ [(span, Jump if_end_name)])
     end
 
 and compile_block name initial_context expected_return (span, stmts) =
-  compile_block_extra name initial_context expected_return (span, stmts) false
+  compile_block_extra name initial_context expected_return (span, stmts) false []
 
-and compile_block_extra name initial_context expected_return (span, stmts) use_verbatim_name =
+and compile_block_extra
+  name initial_context expected_return (span, stmts)
+  use_verbatim_name extra_instrs =
   let context = handle_dead_code span initial_context in
   let new_scope = Scope.ChildScope (context.scope, StringMap.empty) in
   let child_context = { context with scope = new_scope } in
@@ -389,7 +394,7 @@ and compile_block_extra name initial_context expected_return (span, stmts) use_v
     block_is_dead = context.block_is_dead || ctx_after_stmts.block_is_dead;
   } in
   let instrs = [
-    (span, Block (name, new_out_list));
+    (span, Block (name, new_out_list @ extra_instrs));
     (span, Jump name);
   ]
   in
