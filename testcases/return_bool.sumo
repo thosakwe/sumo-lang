@@ -2,5 +2,5 @@ fn main() : bool {
   var x = 3
   var y = 4
   var z = x >= y
-  return z || true
+  return z || (1 == (0 + 1))
 }
