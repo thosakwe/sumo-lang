@@ -3,9 +3,10 @@
 %token EXTERNAL FINAL FN RETURN THIS VAR
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
-%token BW_AND BW_XOR BW_OR
+%token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR
 %token TIMES_EQUALS DIV_EQUALS MOD_EQUALS PLUS_EQUALS MINUS_EQUALS
 %token SHL_EQUALS SHR_EQUALS BW_AND_EQUALS BW_XOR_EQUALS BW_OR_EQUALS
+%token BOOL_AND_EQUALS BOOL_OR_EQUALS
 
 %token <Visibility.t> VIS
 %token <string> C_NAME
@@ -26,12 +27,14 @@
 %left BW_AND
 %left BW_XOR
 %left BW_OR
+%left BOOL_AND BOOL_OR
 %left TIMES_EQUALS DIV_EQUALS MOD_EQUALS
 %left PLUS_EQUALS MINUS_EQUALS
 %left SHL_EQUALS SHR_EQUALS
 %left BW_AND_EQUALS
 %left BW_XOR_EQUALS
 %left BW_OR_EQUALS
+%left BOOL_AND_EQUALS BOOL_OR_EQUALS
 
 %start <Ast.compilation_unit> compilation_unit
 
@@ -149,6 +152,8 @@ expr:
   | l = expr BW_AND r = expr { Ast.Binary ($loc, l, (Ast.Bitwise Ast.BitwiseAnd), r) }
   | l = expr BW_XOR r = expr { Ast.Binary ($loc, l, (Ast.Bitwise Ast.BitwiseXor), r) }
   | l = expr BW_OR r = expr { Ast.Binary ($loc, l, (Ast.Bitwise Ast.BitwiseOr), r) }
+  | l = expr BOOL_AND r = expr { Ast.Binary ($loc, l, Ast.BooleanAnd, r) }
+  | l = expr BOOL_OR r = expr { Ast.Binary ($loc, l, Ast.BooleanOr, r) }
   | t = assign_target TIMES_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Multiply), v) }
   | t = assign_target DIV_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Divide), v) }
   | t = assign_target MOD_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Modulo), v) }
@@ -162,6 +167,10 @@ expr:
     { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseXor)), v) }
   | t = assign_target BW_OR_EQUALS v = expr
     { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseOr)), v) }
+  | t = assign_target BOOL_AND_EQUALS v = expr
+    { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.BooleanAnd), v) }
+  | t = assign_target BOOL_OR_EQUALS v = expr
+    { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.BooleanOr), v) }
 
 
 id:

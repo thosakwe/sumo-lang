@@ -48,6 +48,8 @@ rule read = parse
   | '&' { BW_AND }
   | '^' { BW_XOR }
   | '|' { BW_OR }
+  | "&&" { BOOL_AND }
+  | "||" { BOOL_OR }
 
   | "*=" { TIMES_EQUALS }
   | "/=" { DIV_EQUALS }
@@ -59,6 +61,8 @@ rule read = parse
   | "&=" { BW_AND_EQUALS }
   | "^=" { BW_XOR_EQUALS }
   | "|=" { BW_OR_EQUALS }
+  | "&&=" { BOOL_AND_EQUALS }
+  | "||=" { BOOL_OR_EQUALS }
 
   | "external" { EXTERNAL }
   | "final" { FINAL }
