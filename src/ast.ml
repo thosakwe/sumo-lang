@@ -39,7 +39,9 @@ and binary_op =
   | Modulo
   | Plus
   | Minus
+  | Shift of shift_type
   (* TODO: Bitwise, boolean operators *)
+and shift_type = Left | Right
 and param =
   | ThisParam of span * string
   | RegularParam of span * string * typ

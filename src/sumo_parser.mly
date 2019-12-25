@@ -2,7 +2,7 @@
 %token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
 %token EXTERNAL FINAL FN RETURN THIS VAR
 
-%token TIMES DIV MOD PLUS MINUS
+%token TIMES DIV MOD PLUS MINUS SHL SHR
 %token TIMES_EQUALS DIV_EQUALS MOD_EQUALS PLUS_EQUALS MINUS_EQUALS
 
 %token <Visibility.t> VIS
@@ -17,6 +17,7 @@
 
 %left TIMES DIV MOD
 %left PLUS MINUS
+%left SHL SHR
 %left TIMES_EQUALS DIV_EQUALS MOD_EQUALS
 %left PLUS_EQUALS MINUS_EQUALS
 
@@ -124,6 +125,8 @@ expr:
   | l = expr DIV r = expr { Ast.Binary ($loc, l, Ast.Divide, r) }
   | l = expr PLUS r = expr { Ast.Binary ($loc, l, Ast.Plus, r) }
   | l = expr MINUS r = expr { Ast.Binary ($loc, l, Ast.Minus, r) }
+  | l = expr SHL r = expr { Ast.Binary ($loc, l, (Ast.Shift Ast.Left), r) }
+  | l = expr SHR r = expr { Ast.Binary ($loc, l, (Ast.Shift Ast.Right), r) }
   | t = assign_target EQUALS v = expr { Ast.Assign ($loc, t, Ast.Equals, v) }
   | t = assign_target TIMES_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Multiply), v) }
   | t = assign_target DIV_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Divide), v) }

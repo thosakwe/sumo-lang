@@ -37,12 +37,16 @@ rule read = parse
   | '%' { MOD }
   | '+' { PLUS }
   | '-' { MINUS }
+  | "<<" { SHL }
+  | ">>" { SHR }
 
   | "*=" { TIMES_EQUALS }
   | "/=" { DIV_EQUALS }
   | "%=" { MOD_EQUALS }
   | "+=" { PLUS_EQUALS }
   | "-=" { MINUS_EQUALS }
+  | "<<=" { SHL_EQUALS }
+  | ">>=" { SHR_EQUALS }
 
   | "external" { EXTERNAL }
   | "final" { FINAL }
