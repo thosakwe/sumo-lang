@@ -39,6 +39,12 @@ rule read = parse
   | '-' { MINUS }
   | "<<" { SHL }
   | ">>" { SHR }
+  | "<" { LT }
+  | "<=" { LTE }
+  | ">" { GT }
+  | ">=" { GTE }
+  | "==" { BOOL_EQ }
+  | "!=" { BOOL_NEQ }
   | '&' { BW_AND }
   | '^' { BW_XOR }
   | '|' { BW_OR }

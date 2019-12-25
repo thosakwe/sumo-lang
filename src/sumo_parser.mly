@@ -2,7 +2,8 @@
 %token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
 %token EXTERNAL FINAL FN RETURN THIS VAR
 
-%token TIMES DIV MOD PLUS MINUS SHL SHR BW_AND BW_XOR BW_OR
+%token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
+%token BW_AND BW_XOR BW_OR
 %token TIMES_EQUALS DIV_EQUALS MOD_EQUALS PLUS_EQUALS MINUS_EQUALS
 %token SHL_EQUALS SHR_EQUALS BW_AND_EQUALS BW_XOR_EQUALS BW_OR_EQUALS
 
@@ -19,8 +20,18 @@
 %left TIMES DIV MOD
 %left PLUS MINUS
 %left SHL SHR
+%left LT LTE
+%left GT GTE
+%left BOOL_EQ BOOL_NEQ
+%left BW_AND
+%left BW_XOR
+%left BW_OR
 %left TIMES_EQUALS DIV_EQUALS MOD_EQUALS
 %left PLUS_EQUALS MINUS_EQUALS
+%left SHL_EQUALS SHR_EQUALS
+%left BW_AND_EQUALS
+%left BW_XOR_EQUALS
+%left BW_OR_EQUALS
 
 %start <Ast.compilation_unit> compilation_unit
 
@@ -128,6 +139,12 @@ expr:
   | l = expr MINUS r = expr { Ast.Binary ($loc, l, Ast.Minus, r) }
   | l = expr SHL r = expr { Ast.Binary ($loc, l, (Ast.Shift Ast.Left), r) }
   | l = expr SHR r = expr { Ast.Binary ($loc, l, (Ast.Shift Ast.Right), r) }
+  | l = expr LT r = expr { Ast.Binary ($loc, l, Ast.Lt, r) }
+  | l = expr LTE r = expr { Ast.Binary ($loc, l, Ast.Lte, r) }
+  | l = expr GT r = expr { Ast.Binary ($loc, l, Ast.Gt, r) }
+  | l = expr GTE r = expr { Ast.Binary ($loc, l, Ast.Gte, r) }
+  | l = expr BOOL_EQ r = expr { Ast.Binary ($loc, l, Ast.Eq, r) }
+  | l = expr BOOL_NEQ r = expr { Ast.Binary ($loc, l, Ast.Neq, r) }
   | t = assign_target EQUALS v = expr { Ast.Assign ($loc, t, Ast.Equals, v) }
   | l = expr BW_AND r = expr { Ast.Binary ($loc, l, (Ast.Bitwise Ast.BitwiseAnd), r) }
   | l = expr BW_XOR r = expr { Ast.Binary ($loc, l, (Ast.Bitwise Ast.BitwiseXor), r) }
