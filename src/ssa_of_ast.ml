@@ -151,12 +151,6 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
 
 and compile_stmt (initial_context, out_list, expected_return) stmt = 
   (* If the current block has already returned/broken, issue a warning. *)
-  let handle_dead_code span initial_context =
-    if initial_context.block_is_dead then
-      emit_error initial_context span "Dead code."
-    else initial_context
-  in
-
   match stmt with
   (* If we get an expression, just compile it. *)
   (* TODO: Do these actually generate? *)
@@ -247,26 +241,41 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
   (* If we get a block, we need to create a new scope, AND a new block. *)
   | Ast.Block (span, stmts) -> 
     let context = handle_dead_code span initial_context in
-    let new_scope = Scope.ChildScope (context.scope, StringMap.empty) in
-    let child_context = { context with scope = new_scope } in
-    let compile_one_stmt (context, out_list) stmt =
-      let (new_ctx, new_out_list, _) = compile_stmt (context, out_list, expected_return) stmt in
-      (new_ctx, new_out_list)
+    let (ctx_after_block, block_instrs, _) =
+      compile_block "block" context expected_return (span, stmts)
     in
-    let (ctx_after_stmts, new_out_list) = List.fold_left compile_one_stmt (child_context, out_list) stmts in
-    let (name, new_namer) = Namer.next_name "block" ctx_after_stmts.namer in
-    let new_ctx = { 
-      context with 
-      namer = new_namer; 
-      errors = ctx_after_stmts.errors ;
-      block_is_dead = context.block_is_dead || ctx_after_stmts.block_is_dead;
-    } in
-    let instrs = [
-      (span, Block (name, new_out_list));
-      (span, Jump name);
-    ]
+    let new_ctx =
+      {
+        context with
+        namer = ctx_after_block.namer; 
+        errors = ctx_after_block.errors ;
+        block_is_dead = context.block_is_dead || ctx_after_block.block_is_dead;
+      }
     in
-    (new_ctx, (out_list @ instrs), expected_return)
+    (new_ctx, out_list @ block_instrs, expected_return)
+
+and compile_block name initial_context expected_return (span, stmts) =
+  let context = handle_dead_code span initial_context in
+  let new_scope = Scope.ChildScope (context.scope, StringMap.empty) in
+  let child_context = { context with scope = new_scope } in
+  let compile_one_stmt (context, out_list) stmt =
+    let (new_ctx, new_out_list, _) = compile_stmt (context, out_list, expected_return) stmt in
+    (new_ctx, new_out_list)
+  in
+  let (ctx_after_stmts, new_out_list) = List.fold_left compile_one_stmt (child_context, []) stmts in
+  let (name, new_namer) = Namer.next_name name ctx_after_stmts.namer in
+  let new_ctx = { 
+    context with 
+    namer = new_namer; 
+    errors = ctx_after_stmts.errors ;
+    block_is_dead = context.block_is_dead || ctx_after_stmts.block_is_dead;
+  } in
+  let instrs = [
+    (span, Block (name, new_out_list));
+    (span, Jump name);
+  ]
+  in
+  (new_ctx, instrs, expected_return)
 
 and compile_expr context = function
   (* TODO: Other exprs *)
@@ -494,6 +503,11 @@ and compile_type context = function
         | TypeSymbol typ -> (context, typ)
         | _ as sym -> not_a_type sym
     end
+
+and handle_dead_code span initial_context =
+  if initial_context.block_is_dead then
+    emit_error initial_context span "Dead code."
+  else initial_context
 
 (** Shortcut for emitting an error, and returning a new context object. *)
 and emit_error context span error_msg =
