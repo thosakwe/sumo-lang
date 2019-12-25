@@ -139,9 +139,12 @@ expr:
   | t = assign_target MINUS_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Minus), v) }
   | t = assign_target SHL_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Shift Ast.Left)), v) }
   | t = assign_target SHR_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Shift Ast.Right)), v) }
-  | l = expr BW_AND_EQUALS r = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseAnd)), v) }
-  | l = expr BW_XOR_EQUALS r = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseXor)), v) }
-  | l = expr BW_OR_EQUALS r = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseOr)), v) }
+  | t = assign_target BW_AND_EQUALS v = expr
+    { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseAnd)), v) }
+  | t = assign_target BW_XOR_EQUALS v = expr
+    { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseXor)), v) }
+  | t = assign_target BW_OR_EQUALS v = expr
+    { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Bitwise Ast.BitwiseOr)), v) }
 
 
 id:

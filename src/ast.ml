@@ -80,6 +80,12 @@ let string_of_binary_op = function
       | Left -> "<<"
       | Right -> ">>"
     end
+  | Bitwise typ -> begin
+      match typ with
+      | BitwiseAnd -> "&"
+      | BitwiseXor -> "^"
+      | BitwiseOr -> "|"
+    end
 
 let expr_of_assign_target = function
   | VariableTarget (span, name) -> Ref (span, name)
