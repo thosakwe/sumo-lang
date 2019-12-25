@@ -179,6 +179,7 @@ and compile_instr context span = function
 
 and compile_value context span value = 
   let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
+
   match value with
   | IntLiteral v -> (context, Llvm.const_int (Llvm.i64_type context.llvm_context) v)
   | DoubleLiteral v -> (context, Llvm.const_float (Llvm.double_type context.llvm_context) v)
@@ -222,6 +223,20 @@ and compile_value context span value =
             | Ast.BitwiseXor -> Llvm.build_xor
             | Ast.BitwiseOr -> Llvm.build_or
           end
+        | Ast.Lt | Ast.Lte | Ast.Gt | Ast.Gte | Ast.Eq | Ast.Neq -> begin
+            let f a b name builder =
+              let icmp = match op with
+                | Lt -> Llvm.Icmp.Slt
+                | Lte -> Llvm.Icmp.Sle
+                | Gt -> Llvm.Icmp.Sgt
+                | Gte -> Llvm.Icmp.Sge
+                | Eq -> Llvm.Icmp.Eq
+                | _ -> Llvm.Icmp.Ne
+              in
+              Llvm.build_icmp icmp a b name builder
+            in
+            f
+          end
       in
       let result = f llvm_lhs llvm_rhs "tmp" context.builder in
       (ctx_after_rhs, result)
@@ -238,6 +253,20 @@ and compile_value context span value =
         (* Doubles don't support shifts/bitwise, but we'll never reach this case. *)
         | Ast.Shift _
         | Ast.Bitwise _ -> Llvm.build_shl
+        | Ast.Lt | Ast.Lte | Ast.Gt | Ast.Gte | Ast.Eq | Ast.Neq -> begin
+            let f a b name builder =
+              let fcmp = match op with
+                | Lt -> Llvm.Fcmp.Olt
+                | Lte -> Llvm.Fcmp.Ole
+                | Gt -> Llvm.Fcmp.Ogt
+                | Gte -> Llvm.Fcmp.Oge
+                | Eq -> Llvm.Fcmp.Oeq
+                | _ -> Llvm.Fcmp.One
+              in
+              Llvm.build_fcmp fcmp a b name builder
+            in
+            f
+          end
       in
       let result = f llvm_lhs llvm_rhs "tmp" context.builder in
       (ctx_after_rhs, result)
