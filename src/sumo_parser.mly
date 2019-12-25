@@ -1,6 +1,6 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
-%token EXTERNAL FINAL FN RETURN THIS VAR
+%token ELSE EXTERNAL FINAL FN IF RETURN THIS VAR
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
 %token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR
@@ -113,7 +113,15 @@ stmt:
       in
       Ast.VarDecl (List.map expand_decl d)
     }
+  | i = if_clause ei = list(else_if_clause) e = option(else_clause)
+    { Ast.If ($loc, i, ei, e) }
 
+if_clause:
+  | IF LPAREN c = expr RPAREN b = stmt { Ast.BasicIfClause ($loc, c, b) }
+
+else_if_clause: ELSE v = if_clause { v }
+
+else_clause: ELSE b = stmt { b }
 
 assign_target:
   | n = id { Ast.VariableTarget ($loc, n) }

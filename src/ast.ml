@@ -10,7 +10,10 @@ and stmt =
   | Expr of span * expr
   | VarDecl of var_decl list
   | Return of span * (expr option)
+  | If of span * if_clause * (if_clause list) * (stmt option)
 and var_decl = span * bool * (typ option) * string * expr
+and if_clause =
+  | BasicIfClause of span * expr * stmt
 and assign_target =
   | VariableTarget of span * string
   (* | FieldTarget of span * expr * string

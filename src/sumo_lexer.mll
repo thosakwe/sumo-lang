@@ -64,9 +64,11 @@ rule read = parse
   | "&&=" { BOOL_AND_EQUALS }
   | "||=" { BOOL_OR_EQUALS }
 
+  | "else" { ELSE }
   | "external" { EXTERNAL }
   | "final" { FINAL }
   | "fn" { FN }
+  | "if" { IF }
   | "public" { VIS Visibility.Public }
   | "protected" { VIS Visibility.Protected }
   | "private" { VIS Visibility.Private }
