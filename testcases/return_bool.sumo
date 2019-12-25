@@ -1,4 +1,4 @@
-fn main() : int {
+fn main() : bool {
   var x = 3
   var y = 4
   return x >= y
