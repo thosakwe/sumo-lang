@@ -73,6 +73,11 @@ let string_of_binary_op = function
   | Modulo -> "%"
   | Plus -> "+"
   | Minus -> "-"
+  | Shift typ -> begin
+      match typ with
+      | Left -> "<<"
+      | Right -> ">>"
+    end
 
 let expr_of_assign_target = function
   | VariableTarget (span, name) -> Ref (span, name)

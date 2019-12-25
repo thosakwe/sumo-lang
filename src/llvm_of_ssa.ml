@@ -211,6 +211,11 @@ and compile_value context span value =
         | Ast.Modulo -> Llvm.build_srem
         | Ast.Plus -> Llvm.build_add
         | Ast.Minus -> Llvm.build_sub
+        | Ast.Shift typ -> begin
+            match typ with
+            | Ast.Left -> Llvm.build_shl
+            | Ast.Right -> Llvm.build_lshr
+          end
       in
       let result = f llvm_lhs llvm_rhs "tmp" context.builder in
       (ctx_after_rhs, result)
@@ -224,6 +229,12 @@ and compile_value context span value =
         | Ast.Modulo -> Llvm.build_frem
         | Ast.Plus -> Llvm.build_fadd
         | Ast.Minus -> Llvm.build_fsub
+        (* Doubles don't support shifts, but we'll never reach this case. *)
+        | Ast.Shift typ -> begin
+            match typ with
+            | Ast.Left -> Llvm.build_shl
+            | Ast.Right -> Llvm.build_lshr
+          end
       in
       let result = f llvm_lhs llvm_rhs "tmp" context.builder in
       (ctx_after_rhs, result)

@@ -4,6 +4,7 @@
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR
 %token TIMES_EQUALS DIV_EQUALS MOD_EQUALS PLUS_EQUALS MINUS_EQUALS
+%token SHL_EQUALS SHR_EQUALS
 
 %token <Visibility.t> VIS
 %token <string> C_NAME
@@ -133,6 +134,8 @@ expr:
   | t = assign_target MOD_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Modulo), v) }
   | t = assign_target PLUS_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Plus), v) }
   | t = assign_target MINUS_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.Minus), v) }
+  | t = assign_target SHL_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Shift Ast.Left)), v) }
+  | t = assign_target SHR_EQUALS v = expr { Ast.Assign ($loc, t, (Ast.BinaryAssign (Ast.Shift Ast.Right)), v) }
 
 
 id:
