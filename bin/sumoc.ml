@@ -6,6 +6,7 @@ let emit_llvm = ref false
 let in_file = ref ""
 let out_file = ref ""
 let optimization_level = ref 0
+let verbose = ref false
 
 let set r v =
   r := v
@@ -23,6 +24,7 @@ let specs = [
   ("-O3", Arg.Unit (set_optimization_level 3), "Shorthand for -O=3.");
   ("-S", Arg.Set emit_asm, "Emit Assembly code.");
   ("-emit-llvm", Arg.Set emit_llvm, "Emit LLVM IR.");
+  ("-verbose", Arg.Set verbose, "Produce verbose output, including SSA form.");
 ]
 
 let usage = "usage: sumoc [-Sc] -o <out_file> <in_file>"
@@ -54,7 +56,7 @@ let () =
       (* let name = Filename.remove_extension (Filename.basename !in_file) in *)
 
       (* Compile to LLVM, by chaining sema and codegen. *)
-      let result = Llvm_of_ast.compile_single_ast !in_file c_unit in
+      let result = Llvm_of_ast.compile_single_ast !in_file c_unit !verbose in
 
       (* let result = Llvm_compiler.compile name c_unit Sema.empty_universe in *)
 
