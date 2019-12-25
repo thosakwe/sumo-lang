@@ -179,6 +179,8 @@ and compile_instr context span = function
 
 and compile_value context span value = 
   let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
+  let zero = Llvm.const_int (Llvm.i8_type context.llvm_context) 0 in
+  let one = Llvm.const_int (Llvm.i8_type context.llvm_context) 1 in
 
   match value with
   | IntLiteral v -> (context, Llvm.const_int (Llvm.i64_type context.llvm_context) v)
@@ -233,7 +235,8 @@ and compile_value context span value =
                 | Eq -> Llvm.Icmp.Eq
                 | _ -> Llvm.Icmp.Ne
               in
-              Llvm.build_icmp icmp a b name builder
+              let cmp = Llvm.build_icmp icmp a b name builder in
+              Llvm.build_select cmp one zero "tmp" builder
             in
             f
           end
@@ -263,7 +266,8 @@ and compile_value context span value =
                 | Eq -> Llvm.Fcmp.Oeq
                 | _ -> Llvm.Fcmp.One
               in
-              Llvm.build_fcmp fcmp a b name builder
+              let cmp = Llvm.build_fcmp fcmp a b name builder in
+              Llvm.build_select cmp one zero "tmp" builder
             in
             f
           end
