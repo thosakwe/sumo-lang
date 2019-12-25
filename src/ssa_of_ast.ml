@@ -258,14 +258,16 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
     let context = handle_dead_code span initial_context in
 
     (* Create an "if_end" block, that we'll jump to at the end of everything. *)
-    let (if_end_name, namer_after_end) = Namer.next_name "if_end" context.namer in
+    let (if_end_name, namer_after_if_end) = Namer.next_name "if_end" context.namer in
+    let (else_clause_name, namer_after_else) = Namer.next_name "else" namer_after_if_end in
     let initial_instrs = [
       (span, Block(if_end_name, []));
     ]
     in
 
     (* Preparation to compile the first if block. *)
-    let (first_block_name, next_namer) = Namer.next_name "if_alt" namer_after_end in
+    (* let (first_block_name, next_namer) = Namer.next_name "if_alt" namer_after_else in *)
+    let (first_block_name, next_namer) = Namer.next_name "if_alt" namer_after_else in
     let ctx_after_name = { context with namer = next_namer } in
 
     (* Compile each clause into a block, jumping to if_end at the end.
@@ -281,9 +283,13 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
            * Otherwise, jump to the next block. The thing is, that block can be either
            * the next clause's block, the "else," or "if_end." *)
           | Ok (ctx_after_clause, cond, block_instrs) -> begin
+              let final_jump_target = match else_clause_opt with
+                | None -> if_end_name
+                | Some _ -> else_clause_name
+              in
               let (next_ctx, next_block_name) =
                 match rest with
-                | [] -> (context, "TODO: Create else_block")
+                | [] -> (context, final_jump_target)
                 | _ ->
                   let (block_name, next_namer) = Namer.next_name "if_alt" context.namer in
                   ({ ctx_after_clause with namer = next_namer }, block_name)
@@ -311,9 +317,9 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
       | Some else_clause ->
         let (_, else_clause_as_block) = Ast.block_of_stmt else_clause in
         let (new_ctx, instrs, _) =
-          compile_block "" ctx_after_clauses expected_return (span, else_clause_as_block)
+          compile_block_extra else_clause_name ctx_after_clauses expected_return (span, else_clause_as_block) true
         in
-        (new_ctx, instrs)
+        (new_ctx, [List.hd instrs])
     in
 
     (* Any further instructions in the current context must exist within the if_end block.
@@ -321,8 +327,8 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
     let new_out_list =
       out_list
       @ initial_instrs
-      @ instrs_after_clauses
       @ else_instrs
+      @ instrs_after_clauses
       @ [ (span, PositionAtEnd if_end_name) ]
     in
     (ctx_after_else, new_out_list, expected_return)
@@ -353,12 +359,15 @@ and compile_if_clause context clause name expected_return =
 
       let (ctx_after_block, block_instrs, _) =
         let (_, body_block) = Ast.block_of_stmt body in
-        compile_block name ctx_after_cond expected_return (span, body_block)
+        compile_block_extra name ctx_after_cond expected_return (span, body_block) true
       in
       Ok (ctx_after_block, compiled_cond, block_instrs)
     end
 
 and compile_block name initial_context expected_return (span, stmts) =
+  compile_block_extra name initial_context expected_return (span, stmts) false
+
+and compile_block_extra name initial_context expected_return (span, stmts) use_verbatim_name =
   let context = handle_dead_code span initial_context in
   let new_scope = Scope.ChildScope (context.scope, StringMap.empty) in
   let child_context = { context with scope = new_scope } in
@@ -367,7 +376,12 @@ and compile_block name initial_context expected_return (span, stmts) =
     (new_ctx, new_out_list)
   in
   let (ctx_after_stmts, new_out_list) = List.fold_left compile_one_stmt (child_context, []) stmts in
-  let (name, new_namer) = Namer.next_name name ctx_after_stmts.namer in
+  let (name, new_namer) = 
+    if use_verbatim_name then
+      (name, ctx_after_stmts.namer)
+    else
+      Namer.next_name name ctx_after_stmts.namer 
+  in
   let new_ctx = { 
     context with 
     namer = new_namer; 

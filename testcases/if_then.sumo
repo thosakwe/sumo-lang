@@ -1,0 +1,11 @@
+fn main() : int {
+  if (false) {
+    return 10
+  } else if (1 == 3) {
+    return 20
+  } else if (3 < 4) {
+    return 6
+  } else {
+    return 30
+  }
+}

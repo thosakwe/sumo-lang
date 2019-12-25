@@ -113,15 +113,17 @@ stmt:
       in
       Ast.VarDecl ($loc, (List.map expand_decl d))
     }
-  | i = if_clause ei = list(else_if_clause) e = option(else_clause)
-    { Ast.If ($loc, i, ei, e) }
+  /* | i = if_clause ei = list(else_if_clause) e = option(else_clause) */
+  | i = if_clause e = option(else_clause)
+    { Ast.If ($loc, i, [], e) }
 
 if_clause:
   | IF LPAREN c = expr RPAREN b = stmt { Ast.BasicIfClause ($loc, c, b) }
 
-else_if_clause: ELSE v = if_clause { v }
 
 else_clause: ELSE b = stmt { b }
+
+/* else_if_clause: ELIF v = if_clause { v } */
 
 assign_target:
   | n = id { Ast.VariableTarget ($loc, n) }
