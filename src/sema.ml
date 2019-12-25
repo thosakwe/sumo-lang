@@ -73,7 +73,7 @@ let string_of_position pos =
   ^ ":"
   ^ (string_of_int pos.pos_lnum)
   ^ ":"
-  ^ (string_of_int pos.pos_cnum)
+  ^ (string_of_int (pos.pos_cnum - pos.pos_bol))
 
 let string_of_error e =
   let ((start, _), level, msg) = e in
