@@ -391,7 +391,8 @@ and compile_expr context = function
           | IntType | DoubleType -> begin
               (* If we have a double, then make sure we're not doing a bitwise operation. *)
               match (lhs_type, op) with
-              | (DoubleType, Ast.Shift _) ->
+              | (DoubleType, Ast.Shift _)
+              | (DoubleType, Ast.Bitwise _) ->
                 let error_msg = "Double-precision numbers do not support bitwise operations." in
                 let new_ctx = emit_error ctx_after_right span error_msg in
                 (new_ctx, UnknownType, None)
