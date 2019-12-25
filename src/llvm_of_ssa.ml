@@ -275,6 +275,27 @@ and compile_value context span value =
       let result = f llvm_lhs llvm_rhs "tmp" context.builder in
       (ctx_after_rhs, result)
     end
+
+  | BoolCompare (lhs, op, rhs) -> begin
+      let (ctx_after_lhs, llvm_lhs) = compile_value context span lhs in
+      let (ctx_after_rhs, llvm_rhs) = compile_value ctx_after_lhs span rhs in
+      let f = match op with
+        | Ast.BooleanAnd -> Llvm.build_and
+        | Ast.BooleanOr -> Llvm.build_or
+        | _ ->
+          let f a b name builder =
+            let icmp = match op with
+              | Eq -> Llvm.Icmp.Eq
+              | _ -> Llvm.Icmp.Ne
+            in
+            let cmp = Llvm.build_icmp icmp a b name builder in
+            Llvm.build_select cmp one zero "tmp" builder
+          in
+          f
+      in
+      let result = f llvm_lhs llvm_rhs "tmp" context.builder in
+      (ctx_after_rhs, result)
+    end
   | VarGet (name, _) ->
     if not (Scope.mem name context.scope) then
       let error_msg =
