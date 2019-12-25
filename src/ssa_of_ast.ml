@@ -389,23 +389,49 @@ and compile_expr context = function
           (* For native numbers, both operands must be the same type.
            * If this condition is met, emit a corresponding instruction. *)
           | IntType | DoubleType -> begin
-              match cast_value ctx_after_right span rhs_opt rhs_type lhs_type with
-              | (new_ctx, Error _) -> (new_ctx, UnknownType, None)
-              | (ctx_after_cast, Ok coerced_rhs_opt) -> begin
-                  match coerced_rhs_opt with
-                  | None -> 
-                    let error_msg =
-                      "The right hand side of this expression does not produce a valid value." 
-                    in
-                    let new_ctx = emit_error ctx_after_cast span error_msg in
-                    (new_ctx, UnknownType, None)
-                  | Some rhs -> begin
-                      let value = 
-                        match lhs_type with
-                        | IntType -> IntArithmetic (lhs, op, rhs)
-                        | _ -> DoubleArithmetic (lhs, op, rhs)
-                      in
-                      (ctx_after_cast, lhs_type, Some value)
+              (* If we have a double, then make sure we're not doing a bitwise operation. *)
+              match (lhs_type, op) with
+              | (DoubleType, Ast.Shift _) ->
+                let error_msg = "Double-precision numbers do not support bitwise operations." in
+                let new_ctx = emit_error ctx_after_right span error_msg in
+                (new_ctx, UnknownType, None)
+              (* If we do have a shift, the right must be an int. *)
+              | (IntType, Ast.Shift _) -> begin
+                  match cast_value ctx_after_right span rhs_opt rhs_type IntType with
+                  | (new_ctx, Error _) -> (new_ctx, UnknownType, None)
+                  | (ctx_after_cast, Ok coerced_rhs_opt) -> begin
+                      match coerced_rhs_opt with
+                      | None -> 
+                        let error_msg =
+                          "The right hand side of this bit-shift expression does not produce a valid value." 
+                        in
+                        let new_ctx = emit_error ctx_after_cast span error_msg in
+                        (new_ctx, UnknownType, None)
+                      | Some rhs -> begin
+                          let value = IntArithmetic (lhs, op, rhs) in
+                          (ctx_after_cast, lhs_type, Some value)
+                        end
+                    end
+                end
+              | _ -> begin
+                  match cast_value ctx_after_right span rhs_opt rhs_type lhs_type with
+                  | (new_ctx, Error _) -> (new_ctx, UnknownType, None)
+                  | (ctx_after_cast, Ok coerced_rhs_opt) -> begin
+                      match coerced_rhs_opt with
+                      | None -> 
+                        let error_msg =
+                          "The right hand side of this expression does not produce a valid value." 
+                        in
+                        let new_ctx = emit_error ctx_after_cast span error_msg in
+                        (new_ctx, UnknownType, None)
+                      | Some rhs -> begin
+                          let value = 
+                            match lhs_type with
+                            | IntType -> IntArithmetic (lhs, op, rhs)
+                            | _ -> DoubleArithmetic (lhs, op, rhs)
+                          in
+                          (ctx_after_cast, lhs_type, Some value)
+                        end
                     end
                 end
             end
