@@ -24,6 +24,7 @@ and instr =
   | Value of value
   | Return of typ * value
   | ReturnVoid
+  | Block of string * ((instr spanned) list)
 and typ =
   | IntType
   | DoubleType
@@ -107,6 +108,11 @@ and string_of_instr = function
   | Return (typ, value) -> "return " ^ (string_of_type typ) ^ " " ^ (string_of_value value)
   | ReturnVoid -> "return void"
   | Value value -> string_of_value value
+  | Block (name, spanned_instrs) ->
+    let instrs = List.map (function (_, v) -> v) spanned_instrs in
+    "block " ^ name ^ " {\n"
+    ^ string_of_block instrs
+    ^ "\n}"
 and string_of_type = function
   | IntType -> "int"
   | DoubleType -> "double"

@@ -124,6 +124,31 @@ and compile_instr context span = function
     (new_ctx, Llvm.build_ret llvm_value context.builder)
   | ReturnVoid ->
     (context, Llvm.build_ret_void context.builder)
+  (* If we encounter a block, just compile each statement in turn, in a new context. *)
+  | Block (name, spanned_instrs) -> begin
+      let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
+      match context.func with
+      | None -> 
+        let error_msg = "LLVM compiler error: Encountered a Block, but we are not in a function." in
+        let new_ctx = emit_error context span error_msg in
+        (new_ctx, error_value)
+      | Some func -> 
+        let block = Llvm.append_block context.llvm_context name func in
+        let child_builder = Llvm.builder context.llvm_context in
+        Llvm.position_at_end block child_builder;
+
+        let child_context = { context with builder = child_builder } in
+        let compile_one_child (context, last_value) (span, instr) =
+          compile_instr context span instr
+        in
+
+        let (last_child_context, last_value) =
+          List.fold_left compile_one_child (child_context, error_value) spanned_instrs
+        in
+
+        let new_ctx = { context with errors = last_child_context.errors } in
+        (new_ctx, last_value)
+    end
 
 and compile_value context span value = 
   let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in

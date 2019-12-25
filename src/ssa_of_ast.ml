@@ -25,7 +25,8 @@ and load_ast_into_universe universe path c_unit =
       this_module = path;
       errors = [];
       scope = root_scope;
-      universe = default_universe
+      universe = default_universe;
+      namer = Namer.empty;
     }
   in
   let ref_context = ref { default_context with universe = universe } in
