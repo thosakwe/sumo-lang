@@ -8,7 +8,7 @@ and func_signature = span * (param list) * typ
 and stmt =
   | Block of span * block
   | Expr of span * expr
-  | VarDecl of var_decl list
+  | VarDecl of span * var_decl list
   | Return of span * (expr option)
   | If of span * if_clause * (if_clause list) * (stmt option)
 and var_decl = span * bool * (typ option) * string * expr
@@ -108,3 +108,10 @@ let string_of_binary_op = function
 
 let expr_of_assign_target = function
   | VariableTarget (span, name) -> Ref (span, name)
+
+let block_of_stmt = function
+  | Block (span, stmts) -> (span, stmts)
+  | VarDecl (span, _) as self -> (span, [self])
+  | Expr (span, _) as self ->  (span, [self])
+  | Return (span, _) as self ->  (span, [self])
+  | If (span, _, _, _) as self -> (span, [self])

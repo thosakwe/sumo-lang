@@ -111,7 +111,7 @@ stmt:
       let expand_decl (span, t, name, value) =
         (span, m, t, name, value)
       in
-      Ast.VarDecl (List.map expand_decl d)
+      Ast.VarDecl ($loc, (List.map expand_decl d))
     }
   | i = if_clause ei = list(else_if_clause) e = option(else_clause)
     { Ast.If ($loc, i, ei, e) }

@@ -194,7 +194,7 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
         ({out_ctx with block_is_dead = true}, (out_list @ [(span, instr)]), expected_return)
     end
   (* If we reach variable declarations, then each one will create a new context. *)
-  | Ast.VarDecl decls ->
+  | Ast.VarDecl (_, decls) ->
     (* TODO: Handle duplicate symbols *)
     let compile_var_decl (initial_context, out_list) (span, final, declared_type, name, expr) =
       (* Compile the expression. If resolution fails, emit an error.
@@ -253,6 +253,110 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
       }
     in
     (new_ctx, out_list @ block_instrs, expected_return)
+  | Ast.If (span, main_clause, else_if_clauses, else_clause_opt) ->
+    (* TODO: Detect dead code in if clauses *)
+    let context = handle_dead_code span initial_context in
+
+    (* Create an "if_end" block, that we'll jump to at the end of everything. *)
+    let (if_end_name, namer_after_end) = Namer.next_name "if_end" context.namer in
+    let initial_instrs = [
+      (span, Block(if_end_name, []));
+    ]
+    in
+
+    (* Preparation to compile the first if block. *)
+    let (first_block_name, next_namer) = Namer.next_name "if_alt" namer_after_end in
+    let ctx_after_name = { context with namer = next_namer } in
+
+    (* Compile each clause into a block, jumping to if_end at the end.
+     * If the condition is not matched, jump to the next one. *)
+    let rec compile_clauses (context, out_list) block_name = function
+      | [] -> (context, out_list)
+      | clause :: rest -> begin
+          match compile_if_clause ctx_after_name clause block_name expected_return with
+          | Error new_ctx -> compile_clauses (new_ctx, out_list) block_name rest
+          (* We've created a new block. 
+           * However, compile_block returns multiple instructions. Only take the first.
+           * Generate a conditional jump.
+           * Otherwise, jump to the next block. The thing is, that block can be either
+           * the next clause's block, the "else," or "if_end." *)
+          | Ok (ctx_after_clause, cond, block_instrs) -> begin
+              let (next_ctx, next_block_name) =
+                match rest with
+                | [] -> (context, "TODO: Create else_block")
+                | _ ->
+                  let (block_name, next_namer) = Namer.next_name "if_alt" context.namer in
+                  ({ ctx_after_clause with namer = next_namer }, block_name)
+              in
+
+              let new_instrs = [
+                List.hd block_instrs;
+                (span, JumpIf (cond, block_name, next_block_name));
+              ]
+              in
+              let new_out_list = out_list @ new_instrs in
+              compile_clauses (next_ctx, new_out_list) next_block_name rest
+            end
+        end
+    in
+
+    let all_clauses = [main_clause] @ else_if_clauses in
+    let (ctx_after_clauses, instrs_after_clauses) =
+      compile_clauses (ctx_after_name, []) first_block_name all_clauses
+    in
+
+    (* Compile else block, if any. *)
+    let (ctx_after_else, else_instrs) = match else_clause_opt with
+      | None -> (ctx_after_clauses, [])
+      | Some else_clause ->
+        let (_, else_clause_as_block) = Ast.block_of_stmt else_clause in
+        let (new_ctx, instrs, _) =
+          compile_block "" ctx_after_clauses expected_return (span, else_clause_as_block)
+        in
+        (new_ctx, instrs)
+    in
+
+    (* Any further instructions in the current context must exist within the if_end block.
+     * Emit a PositionAtEnd. *)
+    let new_out_list =
+      out_list
+      @ initial_instrs
+      @ instrs_after_clauses
+      @ else_instrs
+      @ [ (span, PositionAtEnd if_end_name) ]
+    in
+    (ctx_after_else, new_out_list, expected_return)
+
+and compile_if_clause context clause name expected_return =
+  (* Create a new block for this condition. 
+   * Afterwards, jump to the end_label.
+   * If the condition is not matched, jump to the otherwise_label. *)
+
+  (* Compile the if condition. The logic for actually executing the body is identical
+   * for all cases, so combine them. *)
+  let (ctx_after_cond, compiled_cond_opt) = match clause with
+    | Ast.BasicIfClause (span, cond, _) -> begin
+        let (ctx_after_expr, typ, value_opt) = compile_expr context cond in
+        match cast_value ctx_after_expr span value_opt typ BoolType with
+        | (new_ctx, Error _) 
+        | (new_ctx, Ok (None)) -> (new_ctx, None)
+        | (ctx_after_cast, Ok (Some coerced_cond)) -> (ctx_after_cast, Some coerced_cond)
+      end
+  in
+  match compiled_cond_opt with
+  | None -> Error ctx_after_cond
+  (* If we successfully compiled it, compile the body. *)
+  | Some compiled_cond -> begin
+      let (span, body) = match clause with
+        | Ast.BasicIfClause (span, _, body) -> (span, body)
+      in
+
+      let (ctx_after_block, block_instrs, _) =
+        let (_, body_block) = Ast.block_of_stmt body in
+        compile_block name ctx_after_cond expected_return (span, body_block)
+      in
+      Ok (ctx_after_block, compiled_cond, block_instrs)
+    end
 
 and compile_block name initial_context expected_return (span, stmts) =
   let context = handle_dead_code span initial_context in
