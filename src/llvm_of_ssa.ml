@@ -153,7 +153,13 @@ and compile_instr context span = function
         let child_builder = Llvm.builder context.llvm_context in
         Llvm.position_at_end block child_builder;
 
-        let child_context = { context with builder = child_builder } in
+        let child_context =
+          { 
+            context with 
+            builder = child_builder;
+            blocks = StringMap.add name block context.blocks;
+          } 
+        in
         let compile_one_child (context, _) (span, instr) =
           compile_instr context span instr
         in
@@ -162,7 +168,12 @@ and compile_instr context span = function
           List.fold_left compile_one_child (child_context, error_value) spanned_instrs
         in
 
-        let new_ctx = { context with errors = last_child_context.errors } in
+        let new_ctx = {
+          context with 
+          errors = last_child_context.errors;
+          blocks = StringMap.add name block context.blocks;
+        }
+        in
         (new_ctx, last_value)
     end
 
