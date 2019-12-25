@@ -25,6 +25,7 @@ and instr =
   | Return of typ * value
   | ReturnVoid
   | Block of string * ((instr spanned) list)
+  | Jump of string
 and typ =
   | IntType
   | DoubleType
@@ -113,6 +114,7 @@ and string_of_instr = function
     "block " ^ name ^ " {\n"
     ^ string_of_block instrs
     ^ "\n}"
+  | Jump name -> "jump " ^ name
 and string_of_type = function
   | IntType -> "int"
   | DoubleType -> "double"

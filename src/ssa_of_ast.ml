@@ -242,9 +242,13 @@ and compile_stmt (context, out_list, expected_return) = function
     in
     let (ctx_after_stmts, new_out_list) = List.fold_left compile_one_stmt (child_context, out_list) stmts in
     let (name, new_namer) = Namer.next_name "block" ctx_after_stmts.namer in
-    let block = Block (name, new_out_list) in
     let new_ctx = { context with namer = new_namer; errors = ctx_after_stmts.errors } in
-    (new_ctx, (out_list @ [(span, block)]), expected_return)
+    let instrs = [
+      (span, Block (name, new_out_list));
+      (span, Jump name);
+    ]
+    in
+    (new_ctx, (out_list @ instrs), expected_return)
 
 and compile_expr context = function
   (* TODO: Other exprs *)

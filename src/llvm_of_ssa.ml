@@ -8,6 +8,7 @@ type context =
     llvm_context : Llvm.llcontext;
     llvm_module: Llvm.llmodule;
     scope: Llvm.llvalue Scope.t;
+    blocks: Llvm.llbasicblock StringMap.t;
   }
 
 let rec compile_universe module_path errors universe =
@@ -65,6 +66,7 @@ let rec compile_universe module_path errors universe =
       func = None;
       builder = Llvm.builder llvm_context;
       scope = Scope.RootScope map_of_all_symbols;
+      blocks = StringMap.empty;
     }
   in
 
@@ -124,6 +126,20 @@ and compile_instr context span = function
     (new_ctx, Llvm.build_ret llvm_value context.builder)
   | ReturnVoid ->
     (context, Llvm.build_ret_void context.builder)
+  | Jump label -> begin
+      match StringMap.find_opt label context.blocks with
+      | None ->
+        let error_msg =
+          "LLVM compiler error: Jump to unknown block \""
+          ^ label
+          ^ "\"."
+        in
+        let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
+        ((emit_error context span error_msg), error_value)
+      | Some block -> begin
+          (context, Llvm.build_br block context.builder)
+        end
+    end
   (* If we encounter a block, just compile each statement in turn, in a new context. *)
   | Block (name, spanned_instrs) -> begin
       let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
@@ -138,7 +154,7 @@ and compile_instr context span = function
         Llvm.position_at_end block child_builder;
 
         let child_context = { context with builder = child_builder } in
-        let compile_one_child (context, last_value) (span, instr) =
+        let compile_one_child (context, _) (span, instr) =
           compile_instr context span instr
         in
 
@@ -295,6 +311,19 @@ and compile_type context = function
   | VoidType -> Llvm.void_type context
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
+
+(* and find_block name func =
+   let rec find = function
+    | [] -> None
+    | x :: rest ->
+      if (Llvm.value_name x) = name then
+        Some x
+      else
+        find rest
+   in
+   let block_list = Array.to_list (Llvm.basic_blocks func) in
+   Llvm.label_type
+   find block_list *)
 
 and emit_error context span error_msg =
   let error = (span, Sema.Error, error_msg) in
