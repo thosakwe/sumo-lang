@@ -292,7 +292,7 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
                 | [] -> (context, final_jump_target)
                 | _ ->
                   let (block_name, next_namer) = Namer.next_name "if_alt" context.namer in
-                  ({ ctx_after_clause with namer = next_namer }, block_name)
+                  ({ ctx_after_clause with namer = next_namer; block_is_dead = context.block_is_dead; }, block_name)
               in
 
               let new_instrs = [
@@ -322,7 +322,7 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
             else_clause_name ctx_after_clauses expected_return
             (span, else_clause_as_block) true final_jump
         in
-        (new_ctx, [List.hd instrs])
+        ({new_ctx with block_is_dead = context.block_is_dead }, [List.hd instrs])
     in
 
     (* Any further instructions in the current context must exist within the if_end block.
@@ -364,15 +364,16 @@ and compile_if_clause context clause name if_end_name expected_return =
         let (_, body_block) = Ast.block_of_stmt body in
         compile_block_extra name ctx_after_cond expected_return (span, body_block) true []
       in
-      Ok (ctx_after_block, compiled_cond, block_instrs @ [(span, Jump if_end_name)])
+      let final_ctx = { ctx_after_block with block_is_dead = context.block_is_dead } in
+      Ok (final_ctx, compiled_cond, block_instrs @ [(span, Jump if_end_name)])
     end
 
 and compile_block name initial_context expected_return (span, stmts) =
   compile_block_extra name initial_context expected_return (span, stmts) false []
 
 and compile_block_extra
-  name initial_context expected_return (span, stmts)
-  use_verbatim_name extra_instrs =
+    name initial_context expected_return (span, stmts)
+    use_verbatim_name extra_instrs =
   let context = handle_dead_code span initial_context in
   let new_scope = Scope.ChildScope (context.scope, StringMap.empty) in
   let child_context = { context with scope = new_scope } in
