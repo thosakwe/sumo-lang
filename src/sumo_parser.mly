@@ -1,6 +1,6 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
-%token ELSE EXTERNAL FINAL FN IF RETURN THIS VAR
+%token DO ELSE EXTERNAL FINAL FN IF RETURN THIS VAR WHILE
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
 %token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR
@@ -116,6 +116,8 @@ stmt:
   /* | i = if_clause ei = list(else_if_clause) e = option(else_clause) */
   | i = if_clause e = option(else_clause)
     { Ast.If ($loc, i, [], e) }
+  | WHILE c = expr b = stmt { Ast.While ($loc, c, b) }
+  | DO b = stmt WHILE c = expr { Ast.DoWhile ($loc, b, c) }
 
 if_clause:
   | IF LPAREN c = expr RPAREN b = stmt { Ast.BasicIfClause ($loc, c, b) }

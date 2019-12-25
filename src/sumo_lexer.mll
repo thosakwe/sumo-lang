@@ -64,6 +64,7 @@ rule read = parse
   | "&&=" { BOOL_AND_EQUALS }
   | "||=" { BOOL_OR_EQUALS }
 
+  | "do" { DO }
   | "else" { ELSE }
   | "external" { EXTERNAL }
   | "final" { FINAL }
@@ -75,6 +76,7 @@ rule read = parse
   | "return" { RETURN }
   | "this" { THIS }
   | "var" { VAR }
+  | "while" { WHILE }
 
   | "true" { BOOL true }
   | "false" { BOOL false }
