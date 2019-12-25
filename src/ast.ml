@@ -41,9 +41,16 @@ and binary_op =
   | Minus
   | Shift of shift_type
   | Bitwise of bitwise_type
+  | Lt
+  | Lte
+  | Gt
+  | Gte
+  | Eq
+  | Neq
   (* TODO: Bitwise, boolean operators *)
 and shift_type = Left | Right
 and bitwise_type = BitwiseAnd | BitwiseXor | BitwiseOr
+(* and compare_type = And | Or *)
 and param =
   | ThisParam of span * string
   | RegularParam of span * string * typ
@@ -86,6 +93,12 @@ let string_of_binary_op = function
       | BitwiseXor -> "^"
       | BitwiseOr -> "|"
     end
+  | Lt -> "<"
+  | Lte -> "<="
+  | Gt -> ">"
+  | Gte -> ">="
+  | Eq -> "=="
+  | Neq -> "!="
 
 let expr_of_assign_target = function
   | VariableTarget (span, name) -> Ref (span, name)

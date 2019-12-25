@@ -431,7 +431,12 @@ and compile_expr context = function
                             | IntType -> IntArithmetic (lhs, op, rhs)
                             | _ -> DoubleArithmetic (lhs, op, rhs)
                           in
-                          (ctx_after_cast, lhs_type, Some value)
+                          let result_type =
+                            match op with
+                            | Lt | Lte | Gt | Gte | Eq | Neq -> BoolType
+                            | _ -> lhs_type
+                          in
+                          (ctx_after_cast, result_type, Some value)
                         end
                     end
                 end
