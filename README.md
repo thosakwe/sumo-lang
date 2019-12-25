@@ -20,9 +20,19 @@ Some aims:
 * Overall, an enjoyable/productive developer experience, for systems and backend development.
 
 ## Structure
-For better or worse, `sumoc` is basically a one-pass compiler. Rather than separating semantic
-analysis and LLVM code generation, they are combined into the same step. Of course, if this
-proves unwieldly, there's always room to change it if need be.
+`sumoc` is your average compiler. Lexing, parsing, semantic analysis, and LLVM code generation are
+performed sequentially.
+
+By the time the core language is done, I will look into incremental compilation, and writing a
+language server (these two things can likely share a sizeable amount of infrastructure).
+
+## When will it be self hosting?
+If Sumo gets enough traction, it'll be worthwhile to develop a self-hosting compiler for it. Having
+all infrastructure available as Sumo libraries will make it easier to write tooling.
+
+For example, Dart has its own `build` system, and the static analyzer for Dart is self-hosted. Because of
+this, you can relatively easily write code generators and utilities that are aware of all the static information
+the compiler can deduce.
 
 ## Usage
 Basic examples:
