@@ -46,6 +46,7 @@ and value =
   | CastDoubleToInt of value
   | IntArithmetic of value * Ast.binary_op * value
   | DoubleArithmetic of value * Ast.binary_op * value
+  | BoolCompare of value * Ast.binary_op * value
 
 let default_universe =
   {
@@ -74,6 +75,7 @@ let rec type_of_value = function
       in
       f items
     end
+  | BoolCompare _ -> BoolType
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -141,7 +143,8 @@ and string_of_value = function
   | CastIntToDouble inner ->
     "cast<int->double>(" ^ (string_of_value inner) ^ ")"
   | IntArithmetic (left, op, right)
-  | DoubleArithmetic (left, op, right) ->
+  | DoubleArithmetic (left, op, right)
+  | BoolCompare (left, op, right) ->
     let left_str = string_of_value left in
     let op_str = Ast.string_of_binary_op op in
     let right_str = string_of_value right in

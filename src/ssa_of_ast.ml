@@ -385,10 +385,10 @@ and compile_expr context = function
       (* Check if the LHS type has the given operator. *)
       | Some lhs -> begin
           let (ctx_after_right, rhs_type, rhs_opt) = compile_expr ctx_after_left rhs_ast in
-          match lhs_type with
+          match (lhs_type, op) with
           (* For native numbers, both operands must be the same type.
            * If this condition is met, emit a corresponding instruction. *)
-          | IntType | DoubleType -> begin
+          | (IntType, _) | (DoubleType, _) -> begin
               (* If we have a double, then make sure we're not doing a bitwise operation. *)
               match (lhs_type, op) with
               | (DoubleType, Ast.Shift _)
@@ -397,6 +397,7 @@ and compile_expr context = function
                 let new_ctx = emit_error ctx_after_right span error_msg in
                 (new_ctx, UnknownType, None)
               (* If we do have a shift, the right must be an int. *)
+              (* TODO: No boolean ops *)
               | (IntType, Ast.Shift _) -> begin
                   match cast_value ctx_after_right span rhs_opt rhs_type IntType with
                   | (new_ctx, Error _) -> (new_ctx, UnknownType, None)
@@ -440,6 +441,15 @@ and compile_expr context = function
                         end
                     end
                 end
+            end
+          (* Booleans only have ==, !=, &&, ||. Cast both operands to booleans. *)
+          | (BoolType, (Eq | Neq | BooleanAnd | BooleanOr) ) -> begin
+              match cast_value ctx_after_right span rhs_opt rhs_type lhs_type with
+              | (new_ctx, Error _)
+              | (new_ctx, Ok (None)) -> (new_ctx, UnknownType, None)
+              | (ctx_after_cast, Ok (Some rhs)) ->
+                let value = BoolCompare (lhs, op, rhs) in
+                (ctx_after_cast, BoolType, Some value)
             end
           | _ ->
             let error_msg =
