@@ -240,6 +240,9 @@ and compile_value context span value =
             in
             f
           end
+        (* Ints don't support booleans, so this case will never be reached. *)
+        | Ast.BooleanAnd
+        | Ast.BooleanOr -> Llvm.build_add
       in
       let result = f llvm_lhs llvm_rhs "tmp" context.builder in
       (ctx_after_rhs, result)
@@ -253,9 +256,6 @@ and compile_value context span value =
         | Ast.Modulo -> Llvm.build_frem
         | Ast.Plus -> Llvm.build_fadd
         | Ast.Minus -> Llvm.build_fsub
-        (* Doubles don't support shifts/bitwise, but we'll never reach this case. *)
-        | Ast.Shift _
-        | Ast.Bitwise _ -> Llvm.build_shl
         | Ast.Lt | Ast.Lte | Ast.Gt | Ast.Gte | Ast.Eq | Ast.Neq -> begin
             let f a b name builder =
               let fcmp = match op with
@@ -271,11 +271,15 @@ and compile_value context span value =
             in
             f
           end
+        (* Doubles don't support shifts/bitwise, but we'll never reach this case. *)
+        | Ast.Shift _
+        | Ast.Bitwise _ 
+        | Ast.BooleanAnd
+        | Ast.BooleanOr -> Llvm.build_shl
       in
       let result = f llvm_lhs llvm_rhs "tmp" context.builder in
       (ctx_after_rhs, result)
     end
-
   | BoolCompare (lhs, op, rhs) -> begin
       let (ctx_after_lhs, llvm_lhs) = compile_value context span lhs in
       let (ctx_after_rhs, llvm_rhs) = compile_value ctx_after_lhs span rhs in
