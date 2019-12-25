@@ -213,15 +213,15 @@ and compile_instr context span = function
 
 and compile_value context span value = 
   let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
-  let zero = Llvm.const_int (Llvm.i8_type context.llvm_context) 0 in
-  let one = Llvm.const_int (Llvm.i8_type context.llvm_context) 1 in
+  let zero = Llvm.const_int (Llvm.i1_type context.llvm_context) 0 in
+  let one = Llvm.const_int (Llvm.i1_type context.llvm_context) 1 in
 
   match value with
   | IntLiteral v -> (context, Llvm.const_int (Llvm.i64_type context.llvm_context) v)
   | DoubleLiteral v -> (context, Llvm.const_float (Llvm.double_type context.llvm_context) v)
   | BoolLiteral v -> 
     let value = if v then 1 else 0 in
-    (context, Llvm.const_int (Llvm.i8_type context.llvm_context) value)
+    (context, Llvm.const_int (Llvm.i1_type context.llvm_context) value)
   | Multi items -> 
     let fold_item (context, values) value =
       let (new_ctx, llvm_value) = compile_value context span value in
@@ -424,7 +424,7 @@ and compile_function_signature llvm_context params returns =
 and compile_type context = function
   | IntType -> Llvm.i64_type context
   | DoubleType -> Llvm.double_type context
-  | BoolType -> Llvm.i8_type context
+  | BoolType -> Llvm.i1_type context
   | VoidType -> Llvm.void_type context
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
