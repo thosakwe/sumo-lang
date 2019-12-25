@@ -160,8 +160,20 @@ and compile_instr context span = function
             (new_ctx, Llvm.build_cond_br llvm_cond if_true_block if_false_block context.builder)
         end
     end
-  | PositionAtEnd name ->
-    ()
+  | PositionAtEnd name -> begin
+      match StringMap.find_opt name context.blocks with
+      | None -> 
+        let error_msg =
+          "LLVM compiler error: Position at end of unknown block \""
+          ^ name
+          ^ "\"."
+        in
+        let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
+        ((emit_error context span error_msg), error_value)
+      | Some block ->
+        Llvm.position_at_end block context.builder;
+        (context, Llvm.value_of_block block)
+    end
   (* If we encounter a block, just compile each statement in turn, in a new context. *)
   | Block (name, spanned_instrs) -> begin
       let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
