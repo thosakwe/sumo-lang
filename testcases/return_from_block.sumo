@@ -1,6 +1,7 @@
 fn main() : int {
   {
     return 36
+    45
   }
   return 24
 }
