@@ -26,7 +26,7 @@ and instr =
   | ReturnVoid
   | Block of string * ((instr spanned) list)
   | Jump of string
-  | JumpIf of string * value
+  | JumpIf of value * string * string
   | PositionAtEnd of string
 and typ =
   | IntType
@@ -119,6 +119,11 @@ and string_of_instr = function
     ^ string_of_block instrs
     ^ "\n}"
   | Jump name -> "jump " ^ name
+  | JumpIf (cond, if_true, if_false) ->
+    "if " ^ (string_of_value cond)
+    ^ " then jump " ^ if_true
+    ^ "else jump " ^ if_false
+  | PositionAtEnd name -> "position_at_end_of_block " ^ name
 and string_of_type = function
   | IntType -> "int"
   | DoubleType -> "double"

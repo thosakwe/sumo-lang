@@ -140,6 +140,28 @@ and compile_instr context span = function
           (context, Llvm.build_br block context.builder)
         end
     end
+  | JumpIf (cond, if_true, if_false) -> begin
+      let nonexistent_block name context =
+        let error_msg =
+          "LLVM compiler error: Conditional dump to unknown block \""
+          ^ name
+          ^ "\"."
+        in
+        let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
+        ((emit_error context span error_msg), error_value)
+      in
+      match StringMap.find_opt if_true context.blocks with
+      | None -> nonexistent_block if_true context
+      | Some if_true_block -> begin
+          match StringMap.find_opt if_false context.blocks with
+          | None -> nonexistent_block if_false context
+          | Some if_false_block ->
+            let (new_ctx, llvm_cond) = compile_value context span cond in
+            (new_ctx, Llvm.build_cond_br llvm_cond if_true_block if_false_block context.builder)
+        end
+    end
+  | PositionAtEnd name ->
+    ()
   (* If we encounter a block, just compile each statement in turn, in a new context. *)
   | Block (name, spanned_instrs) -> begin
       let error_value = Llvm.const_null (Llvm.i64_type context.llvm_context) in
