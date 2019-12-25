@@ -533,7 +533,7 @@ and compile_type context = function
 
 and handle_dead_code span initial_context =
   if initial_context.block_is_dead then
-    emit_error initial_context span "Dead code."
+    emit_warning initial_context span "Dead code."
   else initial_context
 
 (** Shortcut for emitting an error, and returning a new context object. *)
