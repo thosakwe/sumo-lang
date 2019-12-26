@@ -927,6 +927,20 @@ and compile_type context = function
       | (new_ctx, OptionalType inner) -> (new_ctx, OptionalType inner)
       | (new_ctx, t) -> (new_ctx, OptionalType t)
     end
+  | Ast.StructType (span, fields) -> begin
+      let fold_field (context, ssa_fields) (_, name, typ) =
+        let (new_ctx, ssa_typ) = compile_type context typ in
+        (new_ctx, ssa_fields @ [(name, ssa_typ)])
+      in
+      match fields with
+      | [] ->
+        let error_msg = "A structure type must have at least one field." in
+        let new_ctx = emit_error context span error_msg in
+        (new_ctx, UnknownType)
+      | _ ->
+        let (new_ctx, ssa_fields) = List.fold_left fold_field (context, []) fields in
+        (new_ctx, StructType ssa_fields)
+    end
 
 and handle_dead_code span initial_context =
   if initial_context.block_is_dead then
