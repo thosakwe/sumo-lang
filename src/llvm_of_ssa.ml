@@ -452,21 +452,34 @@ and compile_value context span value =
         (new_ctx, Llvm.build_call target (Array.of_list llvm_args) return_name new_ctx.builder)
     end
   | OptionalSome (typ, _)
-  | OptionalNone typ ->
-    let bool_type = compile_type context.llvm_context BoolType in
-    let llvm_type = compile_type context.llvm_context typ in
-    let struct_type = Llvm.struct_type context.llvm_context [| bool_type; llvm_type |] in
-    let struct_pointer = Llvm.build_alloca struct_type "tmp" context.builder in
-    (* TODO: ... *)
-    (context, struct_pointer)
-  | OptionalNullCheck _ ->
-    (context, zero)
-  | OptionalGet _ ->
-    (context, zero)
-    (* let (new_ctx, llvm_value) = compile_value context span value in
-    let ptr = Llvm.build_struct_gep llvm_value 0 "tmp" new_ctx.builder in
-    let result = Llvm.build_load ptr "tmp" new_ctx.builder in
-    (new_ctx, result) *)
+  | OptionalNone typ -> begin
+      let bool_type = compile_type context.llvm_context BoolType in
+      let llvm_type = compile_type context.llvm_context typ in
+      let struct_type = Llvm.struct_type context.llvm_context [| bool_type; llvm_type |] in
+      let struct_pointer = Llvm.build_alloca struct_type "opt_new_struct_ptr" context.builder in
+      let bool_ptr = Llvm.build_struct_gep struct_pointer 0 "opt_bool_ptr" context.builder in
+      let value_ptr = Llvm.build_struct_gep struct_pointer 1 "opt_value_ptr" context.builder in
+      let new_ctx = match value with
+        | OptionalSome (_, inner_value) ->
+          let (new_ctx, llvm_value) = compile_value context span inner_value in
+          let _ = Llvm.build_store llvm_value value_ptr context.builder in
+          new_ctx
+        |  _ ->
+          let _ = Llvm.build_store zero bool_ptr context.builder in
+          context
+      in
+      (new_ctx, struct_pointer)
+    end
+  | OptionalNullCheck value ->
+    let (new_ctx, llvm_value) = compile_value context span value in
+    let ptr = Llvm.build_struct_gep llvm_value 0 "opt_nc_struct_ptr" new_ctx.builder in
+    let result = Llvm.build_load ptr "opt_nc" new_ctx.builder in
+    (new_ctx, result)
+  | OptionalGet (_, value) ->
+    let (new_ctx, llvm_value) = compile_value context span value in
+    let ptr = Llvm.build_struct_gep llvm_value 1 "opt_get_value_ptr" new_ctx.builder in
+    let result = Llvm.build_load ptr "opt_get" new_ctx.builder in
+    (new_ctx, result)
 
 and compile_function_signature llvm_context params returns =
   let llvm_params =

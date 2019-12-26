@@ -22,7 +22,8 @@ let compile_single_ast path c_unit verbose =
     print_endline "===================================";
     print_endline "            LLVM ANALYSIS          ";
     print_endline "===================================";
-    Llvm_analysis.assert_valid_module llvm_context.llvm_module
+    Llvm_analysis.assert_valid_module llvm_context.llvm_module;
+    print_endline "LLVM module is valid! ✅"
   end;
   { errors = llvm_context.errors; llvm_module = llvm_context.llvm_module }
 (* match llvm_context.errors with
