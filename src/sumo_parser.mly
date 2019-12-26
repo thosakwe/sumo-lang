@@ -93,14 +93,12 @@ param:
 
 typ:
   | v = id { Ast.TypeRef ($loc, v) }
-  /*
   | v = typ QUESTION
     {  
       match v with
         | Ast.OptionalType (_, _) as self -> self
         | _  -> Ast.OptionalType ($loc, v)
     }
-  */
 
 block:
   | LCURLY s = list(stmt) RCURLY { s }
