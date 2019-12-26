@@ -23,8 +23,8 @@ and if_clause =
   | NullCheckIfClause of span * var_decl list * stmt
 and assign_target =
   | VariableTarget of span * string
-  (* | FieldTarget of span * expr * string
-     | IndexTarget of span * expr * expr *)
+  | FieldTarget of span * expr * string
+  (* | IndexTarget of span * expr * expr *)
 and assign_op =
   | Equals
   | BinaryAssign of binary_op
@@ -45,6 +45,7 @@ and expr =
   | Unary of span * expr * unary_op
   | NoneLiteral
   | StructLiteral of span * ((span * string * expr) list)
+  | GetField of span * expr * string
   (* TODO: Postfix, prefix increment *)
 (* TODO: Prefix plus/minus *)
 and binary_op =
@@ -138,6 +139,7 @@ let string_of_unary_op = function
 
 let expr_of_assign_target = function
   | VariableTarget (span, name) -> Ref (span, name)
+  | FieldTarget (span, expr, name) -> GetField (span, expr, name)
 
 let block_of_stmt = function
   | Block (span, stmts) -> (span, stmts)
