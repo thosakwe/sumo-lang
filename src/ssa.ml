@@ -60,8 +60,8 @@ and value =
   | OptionalSome of typ * value
   | OptionalNullCheck of value
   | OptionalGet of typ * value
-  | GetElement of typ * value * value
-  | SetElement of typ * value * value * value
+  | GetElement of typ * value * int
+  | SetElement of typ * value * int * value
 
 let default_universe =
   {
@@ -212,10 +212,10 @@ and string_of_value = function
   | OptionalNullCheck inner -> "not_null? " ^ (string_of_value inner)
   | OptionalGet (_, inner) -> "*" ^ (string_of_value inner)
   | GetElement (typ, lhs, index) ->
-    "(getelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_value index) ^ ") of "
+    "(getelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_int index) ^ ") of "
     ^ (string_of_value lhs) ^ ")"
   | SetElement (typ, lhs, index, rhs) ->
-    "(getelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_value index) ^ ") of "
+    "(getelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_int index) ^ ") of "
     ^ (string_of_value lhs) ^ " = " ^ (string_of_value rhs) ^ ")"
 
 let dump_module _ module_ref =

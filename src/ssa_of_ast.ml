@@ -917,15 +917,13 @@ and compile_expr context = function
             in
             if field_index = -1 then
               let error_msg =
-                "No field named \"" ^ name ^ "\" exists in "
-                ^ string_of_type (StructType field_types)
-                ^ "."
+                string_of_type (StructType field_types)
+                ^ " has no getter named \"" ^ name ^ "\"."
               in
               let new_ctx = emit_error ctx_after_find span error_msg in
               (new_ctx, UnknownType, None)
             else
-              let index = IntLiteral field_index in
-              let value = GetElement (field_type, lhs, index) in
+              let value = GetElement (field_type, lhs, field_index) in
               (ctx_after_find, field_type, Some value)
           | _ -> 
             let error_msg =
@@ -1011,9 +1009,8 @@ and compile_assign context = function
           in
           if field_index = -1 then
             let error_msg =
-              "No field named \"" ^ name ^ "\" exists in "
-              ^ string_of_type (StructType field_types)
-              ^ "."
+              string_of_type (StructType field_types)
+              ^ " has no setter named \"" ^ name ^ "\"."
             in
             let new_ctx = emit_error ctx_after_find span error_msg in
             (new_ctx, UnknownType, None)
@@ -1036,8 +1033,7 @@ and compile_assign context = function
                       let new_ctx = emit_error ctx_after_cast span error_msg in
                       (new_ctx, UnknownType, None)
                     | Some coerced_rhs ->
-                      let index = IntLiteral field_index in
-                      let value = SetElement (field_type, lhs, index, coerced_rhs) in
+                      let value = SetElement (field_type, lhs, field_index, coerced_rhs) in
                       (ctx_after_cast, field_type, Some value)
                   end
               end

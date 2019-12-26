@@ -496,6 +496,17 @@ and compile_value context span value =
       let (new_ctx, _) = StringMap.fold fold_field fields (context, 0) in
       (new_ctx, struct_pointer)
     end
+  | (GetElement (_, lhs, index) as instr)
+  | (SetElement (_, lhs, index, _) as instr) -> begin
+      let (ctx_after_lhs, llvm_lhs) = compile_value context span lhs in
+      let field_ptr = Llvm.build_struct_gep llvm_lhs index "element_ptr" ctx_after_lhs.builder in
+      match instr with
+      | SetElement (_, _, _, rhs) -> 
+        let (ctx_after_rhs, llvm_rhs) = compile_value ctx_after_lhs span rhs in
+        (ctx_after_rhs, Llvm.build_store field_ptr llvm_rhs ctx_after_lhs.builder)
+      | _ -> 
+        (ctx_after_lhs, Llvm.build_load field_ptr "get_element" ctx_after_lhs.builder)
+    end
 
 and compile_function_signature llvm_context params returns =
   let llvm_params =
