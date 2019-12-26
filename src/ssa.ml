@@ -34,6 +34,7 @@ and typ =
   | BoolType
   | VoidType
   | OptionalType of typ
+  | StructType of (string * typ) list
   | UnknownType
 and value =
   | FunctionCall of typ * string * (value list)
@@ -148,6 +149,15 @@ and string_of_type = function
   | VoidType -> "void"
   | OptionalType inner -> (string_of_type inner) ^ "?"
   | UnknownType -> "<unknown>"
+  | StructType (fields) -> begin
+      let string_of_field (name, typ) =
+        name ^ ": " ^ (string_of_type typ)
+      in
+      let field_str = String.concat ", " (List.map string_of_field fields) in
+      match fields with
+      | [] -> "{ <empty struct> }"
+      | _ -> "{ " ^ field_str ^ " }"
+    end
 and string_of_value = function
   | IntLiteral v -> string_of_int v
   | DoubleLiteral v -> string_of_float v
