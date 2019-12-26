@@ -14,6 +14,7 @@
 %token <int> INT
 %token <float> DOUBLE
 %token <bool> BOOL
+%token NONE
 %token <string> LOWER_ID UPPER_ID
 
 %token EOF
@@ -150,6 +151,7 @@ expr:
   | v = DOUBLE { Ast.DoubleLiteral ($loc, v) }
   | v = BOOL { Ast.BoolLiteral ($loc, v) }
   | v = id { Ast.Ref ($loc, v) }
+  | NONE { Ast.NoneLiteral }
   | LPAREN v = expr RPAREN { Ast.Paren ($loc, v) }
   | v = expr INCR { Ast.Unary ($loc, v, Ast.PostfixIncrement) }
   | v = expr DECR { Ast.Unary ($loc, v, Ast.PostfixDecrement) }

@@ -486,6 +486,7 @@ and compile_expr context = function
   | Ast.DoubleLiteral (_, v) -> (context, DoubleType, Some (DoubleLiteral v))
   | Ast.BoolLiteral (_, v) -> (context, BoolType, Some (BoolLiteral v))
   | Ast.Paren (_, inner) -> compile_expr context inner
+  | Ast.NoneLiteral -> (context, UnknownType, Some (OptionalNone UnknownType))
   (* If we find a reference, just figure out if it's a value. *)
   | Ast.Ref (span, name) -> begin
       if not (Scope.mem name context.scope) then
@@ -870,6 +871,8 @@ and cast_value context span value_opt from_type to_type =
       let warning_msg = "Casting a double to int loses precision." in
       let new_ctx = emit_warning context span warning_msg in
       (new_ctx, Ok new_value)
+    | (UnknownType, (OptionalType inner), (Some (OptionalNone UnknownType))) ->
+      (context, Ok (Some (OptionalNone inner)))
     | _ ->
       let left = string_of_type from_type in
       let right = string_of_type to_type in

@@ -85,6 +85,7 @@ rule read = parse
 
   | "true" { BOOL true }
   | "false" { BOOL false }
+  | "none" { NONE }
   | int_literal { INT (int_of_string (Lexing.lexeme lexbuf)) }
   | hex { INT (int_of_string (Lexing.lexeme lexbuf)) }
   | float_literal { DOUBLE (float_of_string (Lexing.lexeme lexbuf)) }

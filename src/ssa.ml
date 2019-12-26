@@ -54,6 +54,7 @@ and value =
   | BitwiseNegate of value
   | Positive of typ * value
   | Negative of typ * value
+  | OptionalNone of typ
 
 let default_universe =
   {
@@ -87,6 +88,7 @@ let rec type_of_value = function
   | BitwiseNegate _ -> IntType
   | Positive (typ, _) -> typ
   | Negative (typ, _) -> typ
+  | OptionalNone typ -> typ
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -171,6 +173,7 @@ and string_of_value = function
   | BitwiseNegate inner -> "~" ^ (string_of_value inner)
   | Positive (_, inner) -> "+" ^ (string_of_value inner)
   | Negative (_, inner) -> "+" ^ (string_of_value inner)
+  | OptionalNone typ -> "none(" ^ (string_of_type typ) ^ ")"
 
 let dump_module _ module_ref =
   let m = !module_ref in

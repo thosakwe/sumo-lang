@@ -38,6 +38,7 @@ and expr =
   | Assign of span * assign_target * assign_op * expr
   | Binary of span * expr * binary_op * expr
   | Unary of span * expr * unary_op
+  | NoneLiteral
   (* TODO: Postfix, prefix increment *)
 (* TODO: Prefix plus/minus *)
 and binary_op =
