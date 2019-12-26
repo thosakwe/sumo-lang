@@ -51,6 +51,8 @@ and value =
   | BoolCompare of value * Ast.binary_op * value
   | BooleanNegate of value
   | BitwiseNegate of value
+  | Positive of typ * value
+  | Negative of typ * value
 
 let default_universe =
   {
@@ -82,6 +84,8 @@ let rec type_of_value = function
   | BoolCompare _ -> BoolType
   | BooleanNegate _ -> BoolType
   | BitwiseNegate _ -> IntType
+  | Positive (typ, _) -> typ
+  | Negative (typ, _) -> typ
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -163,6 +167,8 @@ and string_of_value = function
   | Multi items -> String.concat "\n" (List.map string_of_value items)
   | BooleanNegate inner -> "!" ^ (string_of_value inner)
   | BitwiseNegate inner -> "~" ^ (string_of_value inner)
+  | Positive (_, inner) -> "+" ^ (string_of_value inner)
+  | Negative (_, inner) -> "+" ^ (string_of_value inner)
 
 let dump_module _ module_ref =
   let m = !module_ref in

@@ -339,6 +339,40 @@ and compile_value context span value =
     let (ctx_after_inner, llvm_inner) = compile_value context span inner in
     let result = Llvm.build_neg llvm_inner "tmp" context.builder in
     (ctx_after_inner, result)
+  | Positive (typ, inner)
+  | Negative (typ, inner) -> begin
+      let (ctx_after_inner, llvm_inner) = compile_value context span inner in
+      let llvm_type = compile_type ctx_after_inner.llvm_context typ in
+      let negative_one = Llvm.const_int llvm_type (-1) in
+      let zero = Llvm.const_int llvm_type 0 in
+      let change_sign = 
+        let mul = match typ with
+          | DoubleType -> Llvm.build_fmul
+          | _ -> Llvm.build_mul
+        in
+        mul llvm_inner negative_one "tmp" context.builder
+      in
+      let less_than_zero = 
+        let cmp =
+          match typ with
+          | DoubleType -> begin
+              match  value with
+              | Negative _ -> Llvm.build_fcmp Llvm.Fcmp.Ogt 
+              |  _ -> Llvm.build_fcmp Llvm.Fcmp.Olt 
+            end
+          | _ -> begin
+              match  value with
+              | Negative _ -> Llvm.build_icmp Llvm.Icmp.Sgt 
+              |  _ -> Llvm.build_icmp Llvm.Icmp.Slt 
+            end
+        in
+        cmp llvm_inner zero "tmp" ctx_after_inner.builder
+      in
+      let result =
+        Llvm.build_select less_than_zero change_sign llvm_inner "tmp" ctx_after_inner.builder
+      in
+      (ctx_after_inner, result)
+    end
   | VarGet (name, _) ->
     if not (Scope.mem name context.scope) then
       let error_msg =
