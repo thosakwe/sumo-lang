@@ -906,7 +906,7 @@ and compile_expr context = function
           (* Find the index of the given field. *)
           | StructType field_types ->
             let find_field n typ (context, out_typ, out_index, current_index) =
-              if n != name then
+              if n <> name then
                 (context, out_typ, out_index, current_index + 1)
               else
                 (context, typ, current_index, current_index + 1)
@@ -998,7 +998,7 @@ and compile_assign context = function
       match lhs_type with
       | StructType field_types -> begin
           let find_field n typ (context, out_typ, out_index, current_index) =
-            if n != name then
+            if n <> name then
               (context, out_typ, out_index, current_index + 1)
             else
               (context, typ, current_index, current_index + 1)
