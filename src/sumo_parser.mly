@@ -1,6 +1,6 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
-%token DO ELSE EXTERNAL FINAL FN FOR IF RETURN THIS VAR WHILE
+%token DO ELSE EXTERNAL FINAL FN FOR IF RETURN THIS TYPE VAR WHILE
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
 %token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR INCR DECR BOOL_NOT BW_NOT
@@ -48,6 +48,7 @@ compilation_unit: decls = list(decl) EOF { decls }
 
 decl:
   | v = vis f = func { Ast.FuncDecl ($loc, v, f) }
+  | v = vis TYPE n = id EQUALS t = typ { Ast.TypeDecl ($loc, v, n, t) }
 
 func:
   | FN name = id s = func_sig b = block

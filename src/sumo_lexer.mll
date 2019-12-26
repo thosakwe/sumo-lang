@@ -80,6 +80,7 @@ rule read = parse
   | "private" { VIS Visibility.Private }
   | "return" { RETURN }
   | "this" { THIS }
+  | "type" { TYPE }
   | "var" { VAR }
   | "while" { WHILE }
 

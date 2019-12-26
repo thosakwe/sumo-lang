@@ -1,6 +1,7 @@
 type compilation_unit = decl list
 and decl =
   | FuncDecl of span * Visibility.t * func
+  | TypeDecl of span * Visibility.t * string * typ
 and func =
   | ConcreteFunc of span * string * func_signature * block
   | ExternalFunc of span * (string option) * string * func_signature
