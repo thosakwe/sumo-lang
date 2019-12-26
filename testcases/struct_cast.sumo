@@ -5,6 +5,6 @@ type my_struct =
   }
 
 fn main() : int {
-  var x : my_struct = { one = 1, two = 3.2 }
+  var x : my_struct = { one = 1.2, two = 3 }
   return 45
 }

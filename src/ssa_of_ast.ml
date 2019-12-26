@@ -1052,6 +1052,7 @@ and cast_value context span value_opt from_type to_type =
             (new_ctx, Ok new_value)
           | _ -> failure
       end
+    (* TODO: Struct type casting *)
     | _ ->  failure
 
 (** Checks if a can be casted to b. *)
