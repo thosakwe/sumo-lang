@@ -364,13 +364,8 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
 
           (* Compile the main work block, and insert the conditional code where needed. *)
           let jump_instr = JumpIf (compiled_cond, main_block_name, while_end_name) in
-          let prelude = match stmt with
-            | Ast.While _ -> [(span, jump_instr)]
-            | _ -> []
-          in
           let postlude = match stmt with
-            | Ast.DoWhile _ -> [(span, jump_instr)]
-            | _ -> []
+            | _ -> [(span, jump_instr)]
           in
 
           let ({errors = block_errors ; _}, block_instrs) =
@@ -378,13 +373,24 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
               let (_, body_as_block) = Ast.block_of_stmt body in
               compile_block_extra
                 main_block_name ctx_after_cond expected_return
-                (span, body_as_block) true prelude postlude
+                (span, body_as_block) true [] postlude
             in
             ({new_ctx with block_is_dead = ctx_after_cond.block_is_dead }, [List.hd instrs])
           in
 
+          (* If we have a while, then create an initial "if" to check if we should loop. *)
+          let initial_jump = match stmt with
+            | Ast.While _ -> JumpIf (compiled_cond, main_block_name, while_end_name)
+            | _ -> Jump main_block_name
+          in
+
           (* Any subsequent instructions should be in the end block. *)
-          let new_instrs = initial_instrs @ block_instrs @ [ (span, PositionAtEnd while_end_name)] in
+          let new_instrs =
+            initial_instrs
+            @ block_instrs
+            @ [ (span, initial_jump)]
+            @ [ (span, PositionAtEnd while_end_name)]
+          in
           let new_ctx = { ctx_after_cond with errors = block_errors } in
           (new_ctx, out_list @ new_instrs, expected_return)
         end
