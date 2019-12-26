@@ -647,6 +647,10 @@ and compile_expr context = function
             (new_ctx, UnknownType, None)
         end
     end
+  (* TODO: Implement unaries *)
+  | Ast.Unary (span, _, _) ->
+    let error_msg = "I'm too lazy to do unary ops yet." in
+    ((emit_error context span error_msg), UnknownType, None)
 
 (** Compiles an assignment expression. *)
 and compile_assign context = function
