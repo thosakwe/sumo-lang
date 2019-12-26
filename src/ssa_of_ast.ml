@@ -102,6 +102,8 @@ and load_ast_into_universe universe path c_unit =
         in
         ({ result_ctx with block_is_dead = false }, new_out_list)
       end
+    (* We have already compiled types. *)
+    | Ast.TypeDecl _ -> (context, out_list)
     (* | _ -> (context, out_list) *)
   in
   let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) c_unit in
