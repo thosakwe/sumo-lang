@@ -320,7 +320,7 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
           let final_jump = [(span, Jump if_end_name)] in
           compile_block_extra
             else_clause_name ctx_after_clauses expected_return
-            (span, else_clause_as_block) true final_jump
+            (span, else_clause_as_block) true [] final_jump
         in
         ({new_ctx with block_is_dead = context.block_is_dead }, [List.hd instrs])
     in
@@ -335,6 +335,60 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
       @ [ (span, PositionAtEnd if_end_name) ]
     in
     (ctx_after_else, new_out_list, expected_return)
+  | Ast.While (span, cond, body)
+  | Ast.DoWhile (span, body, cond) -> begin
+      (* Create an "if_end" block, that we'll jump to at the end of everything. *)
+      let context = handle_dead_code span initial_context in
+      let (while_end_name, namer_after_while_end) = Namer.next_name "while_end" context.namer in
+      let (main_block_name, new_namer) =
+        Namer.next_name "while_main_block" namer_after_while_end
+      in
+
+      let initial_instrs = [(span, Block(while_end_name, []))] in
+
+      (* Next, compile the body and cond. *)
+      (* TODO: Inject loop names into scope, to support break/continue *)
+
+      let (ctx_after_cond, compiled_cond_opt) =
+        let ctx_after_namer = { context with namer = new_namer } in
+        let (ctx_after_cond, typ, value_opt) = compile_expr ctx_after_namer cond in
+        match cast_value ctx_after_cond span value_opt typ BoolType with
+        | (new_ctx, Error _)
+        | (new_ctx, Ok (None)) -> (new_ctx, None)
+        | (new_ctx, Ok (Some value)) -> (new_ctx, Some value)
+      in
+
+      match compiled_cond_opt with
+      | None -> (ctx_after_cond, out_list, expected_return)
+      | Some compiled_cond -> begin
+
+          (* Compile the main work block, and insert the conditional code where needed. *)
+          let jump_instr = JumpIf (compiled_cond, main_block_name, while_end_name) in
+          let prelude = match stmt with
+            | Ast.While _ -> [(span, jump_instr)]
+            | _ -> []
+          in
+          let postlude = match stmt with
+            | Ast.DoWhile _ -> [(span, jump_instr)]
+            | _ -> []
+          in
+
+          let ({errors = block_errors ; _}, block_instrs) =
+            let (new_ctx, instrs, _) =
+              let (_, body_as_block) = Ast.block_of_stmt body in
+              compile_block_extra
+                main_block_name ctx_after_cond expected_return
+                (span, body_as_block) true prelude postlude
+            in
+            ({new_ctx with block_is_dead = ctx_after_cond.block_is_dead }, [List.hd instrs])
+          in
+
+          (* Any subsequent instructions should be in the end block. *)
+          let new_instrs = initial_instrs @ block_instrs @ [ (span, PositionAtEnd while_end_name)] in
+          let new_ctx = { ctx_after_cond with errors = block_errors } in
+          (new_ctx, out_list @ new_instrs, expected_return)
+        end
+    end
 
 and compile_if_clause context clause name if_end_name expected_return =
   (* Create a new block for this condition. 
@@ -362,18 +416,18 @@ and compile_if_clause context clause name if_end_name expected_return =
 
       let (ctx_after_block, block_instrs, _) =
         let (_, body_block) = Ast.block_of_stmt body in
-        compile_block_extra name ctx_after_cond expected_return (span, body_block) true []
+        compile_block_extra name ctx_after_cond expected_return (span, body_block) true [] []
       in
       let final_ctx = { ctx_after_block with block_is_dead = context.block_is_dead } in
       Ok (final_ctx, compiled_cond, block_instrs @ [(span, Jump if_end_name)])
     end
 
 and compile_block name initial_context expected_return (span, stmts) =
-  compile_block_extra name initial_context expected_return (span, stmts) false []
+  compile_block_extra name initial_context expected_return (span, stmts) false [] []
 
 and compile_block_extra
     name initial_context expected_return (span, stmts)
-    use_verbatim_name extra_instrs =
+    use_verbatim_name prelude_instrs postlude_instrs =
   let context = handle_dead_code span initial_context in
   let new_scope = Scope.ChildScope (context.scope, StringMap.empty) in
   let child_context = { context with scope = new_scope } in
@@ -395,7 +449,7 @@ and compile_block_extra
     block_is_dead = context.block_is_dead || ctx_after_stmts.block_is_dead;
   } in
   let instrs = [
-    (span, Block (name, new_out_list @ extra_instrs));
+    (span, Block (name, prelude_instrs @ new_out_list @ postlude_instrs));
     (span, Jump name);
   ]
   in

@@ -1,0 +1,9 @@
+fn main() : int {
+  var x = 20
+  var i = 0
+  while (i < 10) {
+    i += 1
+    x += 2
+  }
+  return x
+}
