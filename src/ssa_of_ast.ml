@@ -395,6 +395,15 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
           (new_ctx, out_list @ new_instrs, expected_return)
         end
     end
+  (* The for loop is just sugar for a while loop; treat it as such. *)
+  | Ast.ForLoop (span, init_opt, cond, actions, body) -> begin
+    let (_, block_body) = Ast.block_of_stmt body in
+    let loop_body = block_body @ actions in
+    let while_loop = Ast.While (span, cond, Ast.Block (span, loop_body)) in
+    let init = match init_opt with None -> [] | Some v -> [v] in
+    let for_block = Ast.Block (span, init @ [while_loop]) in
+    compile_stmt (initial_context, out_list, expected_return) for_block
+    end
 
 and compile_if_clause context clause name if_end_name expected_return =
   (* Create a new block for this condition. 

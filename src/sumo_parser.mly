@@ -121,8 +121,8 @@ stmt:
     { Ast.If ($loc, i, [], e) }
   | WHILE c = expr b = stmt { Ast.While ($loc, c, b) }
   | DO b = stmt WHILE c = expr { Ast.DoWhile ($loc, b, c) }
-  | FOR LPAREN i = option(stmt) SEMI c = expr SEMI p = separated_list(SEMI, stmt)
-    { Ast.ForLoop ($loc, i, c, p) }
+  | FOR LPAREN i = option(stmt) SEMI c = expr SEMI p = separated_list(SEMI, stmt) RPAREN b = stmt
+    { Ast.ForLoop ($loc, i, c, p, b) }
 
 if_clause:
   | IF LPAREN c = expr RPAREN b = stmt { Ast.BasicIfClause ($loc, c, b) }
