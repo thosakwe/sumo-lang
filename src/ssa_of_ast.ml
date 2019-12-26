@@ -442,6 +442,49 @@ and compile_if_clause context clause name if_end_name expected_return =
         | (new_ctx, Ok (None)) -> (new_ctx, None)
         | (ctx_after_cast, Ok (Some coerced_cond)) -> (ctx_after_cast, Some coerced_cond)
       end
+    (* The input values must all be optionals. The clause will only execute if
+     * all of them have valid values. *)
+    | Ast.NullCheckIfClause (span, decls, _) -> begin
+        if decls = [] then
+          let error_msg = "A null-checking if statement must contain at least one variable declaration." in
+          ((emit_error context span error_msg), None)
+        else
+          let compile_one_decl (context, conditions) (span, final, type_opt, name, rhs_ast) = 
+            (* These variable declarations must not declare a type. *)
+            match type_opt with
+            | Some _ -> 
+              let error_msg = "This variable declaration must not declare its own type." in
+              ((emit_error context span error_msg), conditions)
+            | _ -> begin
+                let (ctx_after_rhs, rhs_type, _) = compile_expr context rhs_ast in
+                match rhs_type with
+                (* If the value exists, then dereference it, and inject it into the scope. *)
+                (* TODO: Dereferencing *)
+                | OptionalType inner ->
+                  let deref_symbol = VarSymbol (final, name, inner) in
+                  let new_scope_map = StringMap.add name deref_symbol StringMap.empty in
+                  let new_scope = Scope.ChildScope (ctx_after_rhs.scope, new_scope_map) in
+                  let new_ctx = { ctx_after_rhs with scope = new_scope; } in
+                  (new_ctx, conditions)
+                | _ ->
+                  let error_msg = "Every variable in a null-checking if statement must have an optional type." in
+                  ((emit_error ctx_after_rhs span error_msg), conditions)
+              end
+
+          in
+
+          (* Compile all decls, and return the new scope and condition.
+           * All conditions must be reduced into a single AND. *)
+          let (ctx_after_decls, conditions) = List.fold_left compile_one_decl (context, []) decls in
+          match conditions with
+          | [] -> 
+            let error_msg = "Every variable declaration in this if statement produced an error." in
+            ((emit_error ctx_after_decls span error_msg), None)
+          | _ ->
+            let make_and a b =  BoolCompare (a, Ast.BooleanAnd, b) in
+            let combined_condition = List.fold_left make_and (BoolLiteral false) conditions in
+            (ctx_after_decls, Some combined_condition)
+      end
   in
   match compiled_cond_opt with
   | None -> Error ctx_after_cond
@@ -449,6 +492,7 @@ and compile_if_clause context clause name if_end_name expected_return =
   | Some compiled_cond -> begin
       let (span, body) = match clause with
         | Ast.BasicIfClause (span, _, body) -> (span, body)
+        | Ast.NullCheckIfClause (span, _, body) -> (span, body)
       in
 
       let (ctx_after_block, block_instrs, _) =

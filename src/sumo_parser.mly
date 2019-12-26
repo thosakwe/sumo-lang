@@ -125,6 +125,13 @@ stmt:
 
 if_clause:
   | IF LPAREN c = expr RPAREN b = stmt { Ast.BasicIfClause ($loc, c, b) }
+  | IF LPAREN m = final d = separated_list(COMMA, var_decl) RPAREN b = stmt
+    {
+      let expand_decl (span, t, name, value) =
+        (span, m, t, name, value)
+      in
+      Ast.NullCheckIfClause ($loc, (List.map expand_decl d), b)
+    }
 
 
 else_clause: ELSE b = stmt { b }

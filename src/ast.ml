@@ -17,6 +17,7 @@ and stmt =
 and var_decl = span * bool * (typ option) * string * expr
 and if_clause =
   | BasicIfClause of span * expr * stmt
+  | NullCheckIfClause of span * var_decl list * stmt
 and assign_target =
   | VariableTarget of span * string
   (* | FieldTarget of span * expr * string

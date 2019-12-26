@@ -1,4 +1,4 @@
 fn main() : int {
-  var x_opt = none
+  var x_opt : int? = none
   return x_opt
 }
