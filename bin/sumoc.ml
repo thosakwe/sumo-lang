@@ -67,16 +67,14 @@ let () =
         | self -> self
       in
 
-      let (errors, _, _, _) = Sema.organize_errors result.errors in
-
       let dump_error e =
         print_endline (Sema.string_of_error e)
       in
       List.iter dump_error result.errors;
 
-      match errors with
-      | [] -> begin
-          let llvm_ir = Llvm.string_of_llmodule result.llvm_module in
+      match result with
+      | { llvm_module = Some llvm_module; _ } -> begin
+          let llvm_ir = Llvm.string_of_llmodule llvm_module in
           if !emit_llvm then
             let chan = open_out output_path in
             output_string chan llvm_ir;
