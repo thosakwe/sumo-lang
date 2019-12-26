@@ -859,6 +859,13 @@ and emit_warning context span error_msg =
   {context with errors = context.errors @ [error]}
 
 and cast_value context span value_opt from_type to_type =
+  let failure =
+    let left = string_of_type from_type in
+    let right = string_of_type to_type in
+    let error_msg = "Cannot cast a value of type " ^ left ^ " to " ^ right ^ "." in
+    let new_ctx = emit_error context span error_msg in
+    (new_ctx, Error ())
+  in
   if from_type = to_type then
     (context, Ok value_opt)
   else
@@ -873,12 +880,12 @@ and cast_value context span value_opt from_type to_type =
       (new_ctx, Ok new_value)
     | (UnknownType, (OptionalType inner), (Some (OptionalNone UnknownType))) ->
       (context, Ok (Some (OptionalNone inner)))
-    | _ ->
-      let left = string_of_type from_type in
-      let right = string_of_type to_type in
-      let error_msg = "Cannot cast a value of type " ^ left ^ " to " ^ right ^ "." in
-      let new_ctx = emit_error context span error_msg in
-      (new_ctx, Error ())
+    | (_, (OptionalType inner), (Some value)) ->
+      if from_type = inner then
+        (context, Ok (Some value))
+      else 
+        failure
+    | _ ->  failure
 
 (** Checks if a can be casted to b. *)
 (* and can_cast_type a b =
