@@ -238,6 +238,21 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
             | Some t -> compile_type new_ctx t
           in
 
+          (* TODO: SSA variables - get a unique name for each *)
+          let ssa_name = name in
+
+          (* If something goes wrong, inject an Unknown. *)
+          let inject_unknown context =
+            let sym = VarSymbol (final, ssa_name, UnknownType) in
+            let new_scope = Scope.add name sym context.scope in
+            { context with scope = new_scope }
+          in
+
+          let emit_error_and_inject context span error_msg =
+            let new_ctx = emit_error context span error_msg in
+            inject_unknown new_ctx
+          in
+
           match target_type with 
           | UnknownType -> begin
               let error_msg = match value_opt with
@@ -246,22 +261,20 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
                 | _ ->
                   "The right-hand side of this variable declaration produced a value of unknown type."
               in
-              ((emit_error ctx_after_type span error_msg), out_list)
+              ((emit_error_and_inject ctx_after_type span error_msg), out_list)
             end
           | _ -> begin
               match cast_value ctx_after_type span value_opt typ target_type with
               | (ctx_after_cast, Error _) ->
-                (ctx_after_cast, out_list)
+                (inject_unknown ctx_after_cast, out_list)
               | (ctx_after_cast, Ok coerced_value_opt) -> begin
                   match coerced_value_opt with
                   | None -> 
                     let error_msg =
                       "The right-hand side of this variable declaration did not produce a valid value."
                     in
-                    ((emit_error ctx_after_cast span error_msg), out_list)
+                    ((emit_error_and_inject ctx_after_cast span error_msg), out_list)
                   | Some coerced_value ->
-                    (* TODO: SSA variables - get a unique name for each *)
-                    let ssa_name = name in
                     let sym = VarSymbol (final, ssa_name, target_type) in
                     let new_scope = Scope.add name sym context.scope in
                     let new_instrs = [
@@ -498,6 +511,9 @@ and compile_if_clause context clause name if_end_name expected_return =
                   ]
                   in
                   (new_ctx, conditions @ [OptionalNullCheck rhs], prelude @ new_prelude)
+                | (UnknownType, _) ->
+                  let error_msg = "Cannot null-dereference a value of unknown type." in
+                  ((emit_error ctx_after_rhs span error_msg), conditions, prelude)
                 | _ ->
                   let error_msg = "Every variable in a null-checking if statement must have an optional type." in
                   ((emit_error ctx_after_rhs span error_msg), conditions, prelude)
