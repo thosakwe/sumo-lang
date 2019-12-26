@@ -695,11 +695,59 @@ and compile_expr context = function
                 | Ast.UnaryPlus -> Positive (IntType, value)
                 | _ -> Negative (IntType, value)
               in
-              (ctx_after_expr, IntType, (Some result)) 
+              (ctx_after_expr, IntType, Some result) 
             end
         end
-      | (IntType, (Ast.PrefixDecrement | Ast.PrefixIncrement 
-                  | Ast.PostfixDecrement | Ast.PostfixIncrement)) -> ()
+      | ((IntType | DoubleType), 
+         (Ast.PrefixDecrement | Ast.PrefixIncrement 
+         | Ast.PostfixDecrement | Ast.PostfixIncrement)) ->  begin
+
+          (* Either add or subtract one. *)
+          let apply_incr value = 
+            let incr_op = match op with
+              | Ast.PrefixIncrement | Ast.PostfixIncrement -> Ast.Plus
+              | _ -> Ast.Minus
+            in
+
+            match expr_type with
+            | IntType -> IntArithmetic (value, incr_op, (IntLiteral 1))
+            | _ -> IntArithmetic (value, incr_op, (DoubleLiteral 1.0))
+          in
+
+          (* Assignments can only be done to l-values (assign_target.) *)
+          match Ast.innermost_expr expr with
+          | Ast.Ref (_, name) -> begin
+              let var_get = VarGet (name, expr_type) in
+              let (final_ctx, result) = 
+                match op with
+                | Ast.PrefixIncrement | Ast.PrefixDecrement ->
+                  let result = Multi [
+                      VarSet (name, expr_type, (apply_incr var_get));
+                      var_get;
+                    ]
+                  in
+                  (ctx_after_expr, result)
+                | _ -> 
+                  let (tmp_name, new_namer) = Namer.next_name "tmp_postfix" context.namer in
+                  let tmp_get = VarGet (tmp_name, expr_type) in
+                  let result = Multi [
+                      VarCreate (tmp_name, expr_type);
+                      VarSet (tmp_name, expr_type, var_get);
+                      VarSet (name, expr_type, (apply_incr tmp_get));
+                      tmp_get;
+                    ]
+                  in
+                  ({ ctx_after_expr with namer = new_namer }, result)
+              in
+              (final_ctx, expr_type, Some result)
+            end
+          | _ -> 
+            let error_msg =
+              "This operator can only be performed on l-values." 
+            in
+            let new_ctx = emit_error ctx_after_expr span error_msg in
+            (new_ctx, UnknownType, None)
+        end
       | _ ->
         let error_msg =
           "The type "
