@@ -28,7 +28,6 @@ rule read = parse
   | ',' { COMMA }
   | '.' { DOT }
   | '=' { EQUALS }
-  | '|' { PIPE }
   | ';' { SEMI }
   | '?' { QUESTION }
 

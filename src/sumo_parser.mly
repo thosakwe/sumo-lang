@@ -1,5 +1,5 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
-%token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
+%token ARROW COLON COMMA DOT EQUALS SEMI QUESTION
 %token DO ELSE EXTERNAL FINAL FN FOR IF RETURN THIS TYPE VAR WHILE
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
@@ -100,9 +100,9 @@ typ:
         | Ast.OptionalType (_, _) as self -> self
         | _  -> Ast.OptionalType ($loc, v)
     }
-  | LCURLY f = list(struct_field) RCURLY { Ast.StructType ($loc, f) }
+  | LCURLY f = list(struct_type_field) RCURLY { Ast.StructType ($loc, f) }
 
-struct_field: n = id COLON t = typ { ($loc, n, t) }
+struct_type_field: n = id COLON t = typ { ($loc, n, t) }
 
 block:
   | LCURLY s = list(stmt) RCURLY { s }
@@ -162,6 +162,7 @@ expr:
   | v = id { Ast.Ref ($loc, v) }
   | NONE { Ast.NoneLiteral }
   | LPAREN v = expr RPAREN { Ast.Paren ($loc, v) }
+  | LCURLY f = separated_list(option(COMMA), struct_value_field) RCURLY { Ast.StructLiteral ($loc, f) }
   | v = expr INCR { Ast.Unary ($loc, v, Ast.PostfixIncrement) }
   | v = expr DECR { Ast.Unary ($loc, v, Ast.PostfixDecrement) }
   | t = expr LPAREN a = separated_list(COMMA, expr) RPAREN { Ast.Call ($loc, t, a) }
@@ -208,6 +209,8 @@ expr:
   | t = assign_target BOOL_OR_EQUALS v = expr
     { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.BooleanOr), v) }
 
+
+struct_value_field: n = id COLON v = expr { ($loc, n, v) }
 
 id:
   | v = UPPER_ID { v }

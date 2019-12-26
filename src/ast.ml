@@ -44,6 +44,7 @@ and expr =
   | Binary of span * expr * binary_op * expr
   | Unary of span * expr * unary_op
   | NoneLiteral
+  | StructLiteral of span * ((span * string * expr) list)
   (* TODO: Postfix, prefix increment *)
 (* TODO: Prefix plus/minus *)
 and binary_op =

@@ -5,7 +5,7 @@ type my_struct =
   }
 
 fn main() : int {
-  var x_opt : my_struct? = none
+  var x_opt : my_struct? = { one = 1, maybe_two = none}
   if (var x = x_opt) {
     return 23
   }
