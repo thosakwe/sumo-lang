@@ -163,6 +163,8 @@ expr:
   | t = expr LPAREN a = separated_list(COMMA, expr) RPAREN { Ast.Call ($loc, t, a) }
   | INCR v = expr { Ast.Unary ($loc, v, Ast.PrefixIncrement) }
   | DECR v = expr { Ast.Unary ($loc, v, Ast.PrefixDecrement) }
+  | PLUS v = expr { Ast.Unary ($loc, v, Ast.UnaryPlus) }
+  | MINUS v = expr { Ast.Unary ($loc, v, Ast.UnaryMinus) }
   | BOOL_NOT v = expr { Ast.Unary ($loc, v, Ast.LogicalNot) }
   | BW_NOT v = expr { Ast.Unary ($loc, v, Ast.BitwiseNot) }
   | l = expr TIMES r = expr { Ast.Binary ($loc, l, Ast.Multiply, r) }

@@ -5,7 +5,7 @@ fn demo_none_infer() : double? {
 fn main() : int {
   var x_opt : int? = none
   if (var x = x_opt) {
-    return x * 2
+    return x * +2
   }
   return 13
 }
