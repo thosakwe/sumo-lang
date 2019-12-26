@@ -1,0 +1,7 @@
+fn main() : int {
+  var x_opt : int? = 14
+  if (var x = x_opt) {
+    return x * 2
+  }
+  return 13
+}

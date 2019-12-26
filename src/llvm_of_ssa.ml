@@ -462,6 +462,7 @@ and compile_value context span value =
       let new_ctx = match value with
         | OptionalSome (_, inner_value) ->
           let (new_ctx, llvm_value) = compile_value context span inner_value in
+          let _ = Llvm.build_store one bool_ptr context.builder in
           let _ = Llvm.build_store llvm_value value_ptr context.builder in
           new_ctx
         |  _ ->
@@ -499,6 +500,7 @@ and compile_type context = function
     let llvm_inner = compile_type context inner in
     let bool_type = compile_type context BoolType in
     let struct_type = Llvm.struct_type context [| bool_type; llvm_inner |] in
+    (* Llvm.pointer_type struct_type *)
     Llvm.pointer_type struct_type
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
