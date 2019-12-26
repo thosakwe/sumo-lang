@@ -882,7 +882,7 @@ and cast_value context span value_opt from_type to_type =
       (context, Ok (Some (OptionalNone inner)))
     | (_, (OptionalType inner), (Some value)) ->
       if from_type = inner then
-        (context, Ok (Some value))
+        (context, Ok (Some (OptionalSome (to_type, value))))
       else 
         failure
     | _ ->  failure
