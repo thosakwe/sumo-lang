@@ -334,7 +334,8 @@ and compile_value context span value =
       let result = f llvm_lhs llvm_rhs "tmp" context.builder in
       (ctx_after_rhs, result)
     end
-  | BooleanNegate inner -> 
+  | BooleanNegate inner
+  | BitwiseNegate inner -> 
     let (ctx_after_inner, llvm_inner) = compile_value context span inner in
     let result = Llvm.build_neg llvm_inner "tmp" context.builder in
     (ctx_after_inner, result)

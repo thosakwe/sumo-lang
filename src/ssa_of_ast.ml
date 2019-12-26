@@ -682,7 +682,11 @@ and compile_expr context = function
           | None -> failure
           | Some value -> (ctx_after_expr, BoolType, (Some (BooleanNegate value)))
         end
-      | (IntType, Ast.BitwiseNot) -> ()
+      | (IntType, Ast.BitwiseNot) -> begin
+          match value_opt with
+          | None -> failure
+          | Some value -> (ctx_after_expr, IntType, (Some (BitwiseNegate value)))
+        end
       | (IntType, (Ast.UnaryPlus | Ast.UnaryMinus)) -> ()
       | (IntType, (Ast.PrefixDecrement | Ast.PrefixIncrement 
                   | Ast.PostfixDecrement | Ast.PostfixIncrement)) -> ()

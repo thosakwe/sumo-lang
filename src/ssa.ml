@@ -50,6 +50,7 @@ and value =
   | DoubleArithmetic of value * Ast.binary_op * value
   | BoolCompare of value * Ast.binary_op * value
   | BooleanNegate of value
+  | BitwiseNegate of value
 
 let default_universe =
   {
@@ -80,6 +81,7 @@ let rec type_of_value = function
     end
   | BoolCompare _ -> BoolType
   | BooleanNegate _ -> BoolType
+  | BitwiseNegate _ -> IntType
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -160,6 +162,7 @@ and string_of_value = function
     left_str ^ " " ^ op_str ^ " " ^ right_str
   | Multi items -> String.concat "\n" (List.map string_of_value items)
   | BooleanNegate inner -> "!" ^ (string_of_value inner)
+  | BitwiseNegate inner -> "~" ^ (string_of_value inner)
 
 let dump_module _ module_ref =
   let m = !module_ref in
