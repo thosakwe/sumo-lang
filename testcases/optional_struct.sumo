@@ -1,13 +1,15 @@
 type my_struct =
   {
     one: int
-    maybe_two: int?
+    two: int
   }
 
 fn main() : int {
-  var x_opt : my_struct? = { one = 1, maybe_two = none}
+  var x_opt : my_struct? = { one = 1, two = 2}
   if (var x = x_opt) {
-    return 23
+    return x.maybe_two + (x.one * 4)
+  } else {
+    return 55
   }
-  return 45
+  return 1
 }
