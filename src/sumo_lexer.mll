@@ -50,6 +50,10 @@ rule read = parse
   | '|' { BW_OR }
   | "&&" { BOOL_AND }
   | "||" { BOOL_OR }
+  | "++" { INCR }
+  | "--" { DECR }
+  | '!' { BOOL_NOT }
+  | '~' { BW_NOT }
 
   | "*=" { TIMES_EQUALS }
   | "/=" { DIV_EQUALS }

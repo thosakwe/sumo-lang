@@ -3,7 +3,7 @@
 %token DO ELSE EXTERNAL FINAL FN IF RETURN THIS VAR WHILE
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
-%token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR
+%token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR INCR DECR BOOL_NOT BW_NOT
 %token TIMES_EQUALS DIV_EQUALS MOD_EQUALS PLUS_EQUALS MINUS_EQUALS
 %token SHL_EQUALS SHR_EQUALS BW_AND_EQUALS BW_XOR_EQUALS BW_OR_EQUALS
 %token BOOL_AND_EQUALS BOOL_OR_EQUALS
@@ -18,6 +18,9 @@
 
 %token EOF
 
+%left LPAREN
+%left INCR DECR
+%left BOOL_NOT BW_NOT
 %left TIMES DIV MOD
 %left PLUS MINUS
 %left SHL SHR
@@ -146,7 +149,13 @@ expr:
   | v = BOOL { Ast.BoolLiteral ($loc, v) }
   | v = id { Ast.Ref ($loc, v) }
   | LPAREN v = expr RPAREN { Ast.Paren ($loc, v) }
+  | v = expr INCR { Ast.Unary ($loc, v, Ast.PostfixIncrement) }
+  | v = expr DECR { Ast.Unary ($loc, v, Ast.PostfixDecrement) }
   | t = expr LPAREN a = separated_list(COMMA, expr) RPAREN { Ast.Call ($loc, t, a) }
+  | INCR v = expr { Ast.Unary ($loc, v, Ast.PrefixIncrement) }
+  | DECR v = expr { Ast.Unary ($loc, v, Ast.PrefixDecrement) }
+  | BOOL_NOT v = expr { Ast.Unary ($loc, v, Ast.LogicalNot) }
+  | BW_NOT v = expr { Ast.Unary ($loc, v, Ast.BitwiseNot) }
   | l = expr TIMES r = expr { Ast.Binary ($loc, l, Ast.Multiply, r) }
   | l = expr MOD r = expr { Ast.Binary ($loc, l, Ast.Modulo, r) }
   | l = expr DIV r = expr { Ast.Binary ($loc, l, Ast.Divide, r) }

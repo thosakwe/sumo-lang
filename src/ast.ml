@@ -36,6 +36,7 @@ and expr =
   | Call of span * expr * (expr list)
   | Assign of span * assign_target * assign_op * expr
   | Binary of span * expr * binary_op * expr
+  | Unary of span * expr * unary_op
   (* TODO: Postfix, prefix increment *)
 (* TODO: Prefix plus/minus *)
 and binary_op =
@@ -55,6 +56,15 @@ and binary_op =
   | BooleanAnd
   | BooleanOr
   (* TODO: Bitwise, boolean operators *)
+and unary_op =
+  | PostfixIncrement
+  | PostfixDecrement
+  | PrefixIncrement
+  | PrefixDecrement
+  | UnaryPlus
+  | UnaryMinus
+  | LogicalNot
+  | BitwiseNot
 and shift_type = Left | Right
 and bitwise_type = BitwiseAnd | BitwiseXor | BitwiseOr
 and param =
