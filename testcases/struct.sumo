@@ -1,0 +1,9 @@
+type my_struct =
+  {
+    one: int
+    maybe_two: int?
+  }
+
+fn main() : int {
+  var x : my_struct? = none
+}
