@@ -898,6 +898,43 @@ and compile_expr context = function
         (new_ctx, UnknownType, None)
 
     end
+  | Ast.GetField (span, expr, name) -> begin
+      match compile_expr context expr with
+      | (ctx_after_expr, _, None) -> (ctx_after_expr, UnknownType, None)
+      | (ctx_after_expr, expr_type, Some lhs) -> begin
+          match expr_type with
+          (* Find the index of the given field. *)
+          | StructType field_types ->
+            let find_field n typ (context, out_typ, out_index, current_index) =
+              if n != name then
+                (context, out_typ, out_index, current_index + 1)
+              else
+                (context, typ, current_index, current_index + 1)
+            in
+            let initial_data = (ctx_after_expr, UnknownType, -1, 0) in
+            let (ctx_after_find, field_type, field_index, _) =
+              StringMap.fold find_field field_types initial_data
+            in
+            if field_index = -1 then
+              let error_msg =
+                "No field named \"" ^ name ^ "\" exists in "
+                ^ string_of_type (StructType field_types)
+                ^ "."
+              in
+              let new_ctx = emit_error ctx_after_find span error_msg in
+              (new_ctx, UnknownType, None)
+            else
+              let index = IntLiteral field_index in
+              let value = GetElement (field_type, lhs, index) in
+              (ctx_after_find, field_type, Some value)
+          | _ -> 
+            let error_msg =
+              "Values of type " ^ (string_of_type expr_type) ^ " do not have any fields."
+            in
+            let new_ctx = emit_error context span error_msg in
+            (new_ctx, UnknownType, None)
+        end
+    end
 
 (** Compiles an assignment expression. *)
 and compile_assign context = function
