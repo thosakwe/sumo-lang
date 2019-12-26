@@ -995,6 +995,60 @@ and compile_assign context = function
           let new_ctx = emit_error context span error_msg in
           (new_ctx, UnknownType, None)
     end
+  | (_, Ast.FieldTarget(span, lhs_ast, name), Ast.Equals, rhs_ast) -> begin
+      let (ctx_after_lhs, lhs_type, lhs_opt) = compile_expr context lhs_ast in
+      match lhs_type with
+      | StructType field_types -> begin
+          let find_field n typ (context, out_typ, out_index, current_index) =
+            if n != name then
+              (context, out_typ, out_index, current_index + 1)
+            else
+              (context, typ, current_index, current_index + 1)
+          in
+          let initial_data = (ctx_after_lhs, UnknownType, -1, 0) in
+          let (ctx_after_find, field_type, field_index, _) =
+            StringMap.fold find_field field_types initial_data
+          in
+          if field_index = -1 then
+            let error_msg =
+              "No field named \"" ^ name ^ "\" exists in "
+              ^ string_of_type (StructType field_types)
+              ^ "."
+            in
+            let new_ctx = emit_error ctx_after_find span error_msg in
+            (new_ctx, UnknownType, None)
+          else
+            match lhs_opt with
+            | None ->
+              let error_msg = "Could not resolve the left-hand side target of this field assignment." in
+              let new_ctx = emit_error ctx_after_find span error_msg in
+              (new_ctx, UnknownType, None)
+            | Some lhs -> begin
+                let (ctx_after_rhs, rhs_type, rhs_opt) = compile_expr ctx_after_find rhs_ast in
+                (* match rhs_opt with *)
+                match cast_value ctx_after_rhs span rhs_opt rhs_type field_type with
+                | (ctx_after_cast, Error _) ->
+                  (ctx_after_cast, UnknownType, None)
+                | (ctx_after_cast, Ok coerced_rhs_opt) -> begin
+                    match coerced_rhs_opt with
+                    | None ->
+                      let error_msg = "Could not resolve the right-hand side of this field assignment." in
+                      let new_ctx = emit_error ctx_after_cast span error_msg in
+                      (new_ctx, UnknownType, None)
+                    | Some coerced_rhs ->
+                      let index = IntLiteral field_index in
+                      let value = SetElement (field_type, lhs, index, coerced_rhs) in
+                      (ctx_after_cast, field_type, Some value)
+                  end
+              end
+        end
+      | _ ->
+        let error_msg =
+          "Values of type " ^ (string_of_type lhs_type) ^ " do not have any fields."
+        in
+        let new_ctx = emit_error context span error_msg in
+        (new_ctx, UnknownType, None)
+    end
 (* TODO: Handle other assignment cases *)
 (* | (span, _, _, _) ->
    let error_msg = "I don't know how to compile this assignment (yet!)." in

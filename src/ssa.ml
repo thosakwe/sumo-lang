@@ -61,6 +61,7 @@ and value =
   | OptionalNullCheck of value
   | OptionalGet of typ * value
   | GetElement of typ * value * value
+  | SetElement of typ * value * value * value
 
 let default_universe =
   {
@@ -100,6 +101,7 @@ let rec type_of_value = function
   | OptionalNullCheck _ -> BoolType
   | OptionalGet (typ, _) -> typ
   | GetElement (typ, _, _) -> typ
+  | SetElement (typ, _, _, _) -> typ
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -212,6 +214,9 @@ and string_of_value = function
   | GetElement (typ, lhs, index) ->
     "(getelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_value index) ^ ") of "
     ^ (string_of_value lhs) ^ ")"
+  | SetElement (typ, lhs, index, rhs) ->
+    "(getelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_value index) ^ ") of "
+    ^ (string_of_value lhs) ^ " = " ^ (string_of_value rhs) ^ ")"
 
 let dump_module _ module_ref =
   let m = !module_ref in
