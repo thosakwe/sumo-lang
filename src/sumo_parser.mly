@@ -99,6 +99,9 @@ typ:
         | Ast.OptionalType (_, _) as self -> self
         | _  -> Ast.OptionalType ($loc, v)
     }
+  | LCURLY f = list(struct_field) RCURLY { Ast.StructType ($loc, f) }
+
+struct_field: n = id COLON t = typ { ($loc, n, t) }
 
 block:
   | LCURLY s = list(stmt) RCURLY { s }

@@ -29,6 +29,7 @@ and block = stmt list
 and typ =
   | TypeRef of span * string
   | OptionalType of span * typ
+  | StructType of span * ((span * string * typ) list)
 and expr =
   | Ref of span * string
   | IntLiteral of span * int
