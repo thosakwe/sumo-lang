@@ -13,6 +13,7 @@ and stmt =
   | If of span * if_clause * (if_clause list) * (stmt option)
   | While of span * expr * stmt
   | DoWhile of span * stmt * expr
+  | ForLoop of span * (stmt list) * expr * (stmt list)
 and var_decl = span * bool * (typ option) * string * expr
 and if_clause =
   | BasicIfClause of span * expr * stmt
@@ -129,3 +130,4 @@ let block_of_stmt = function
   | If (span, _, _, _) as self -> (span, [self])
   | While (span, _, _) as self -> (span, [self])
   | DoWhile (span, _, _) as self -> (span, [self])
+  | ForLoop (span, _, _, _) as self -> (span, [self])
