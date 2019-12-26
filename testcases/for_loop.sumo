@@ -1,6 +1,6 @@
 fn main() : int {
   var x = 0
-  for (var i = 0, j = 13; i < 10; i += 1) {
+  for (var i = 0, j = 13; i < 10; i++) {
     x += 1
   }
   return x
