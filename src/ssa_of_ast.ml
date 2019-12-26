@@ -658,7 +658,7 @@ and compile_expr context = function
             let error_msg =
               "The type "
               ^ string_of_type lhs_type
-              ^ " has no '"
+              ^ " has no binary '"
               ^ (Ast.string_of_binary_op op)
               ^ "' operator."
             in
@@ -667,9 +667,37 @@ and compile_expr context = function
         end
     end
   (* TODO: Implement unaries *)
-  | Ast.Unary (span, _, _) ->
-    let error_msg = "I'm too lazy to do unary ops yet." in
-    ((emit_error context span error_msg), UnknownType, None)
+  | Ast.Unary (span, expr, op) -> begin
+      let (ctx_after_expr, expr_type, value_opt) = compile_expr context expr in
+      let failure =
+        let error_msg =
+          "The inner expression of this unary operation does not produce a valid value." 
+        in
+        let new_ctx = emit_error ctx_after_expr span error_msg in
+        (new_ctx, UnknownType, None)
+      in
+      match (expr_type, op) with
+      | (BoolType, Ast.LogicalNot) -> begin
+          match value_opt with
+          | None -> failure
+          | Some value -> (ctx_after_expr, BoolType, (Some (BooleanNegate value)))
+        end
+      | (IntType, Ast.BitwiseNot) -> ()
+      | (IntType, (Ast.UnaryPlus | Ast.UnaryMinus)) -> ()
+      | (IntType, (Ast.PrefixDecrement | Ast.PrefixIncrement 
+                  | Ast.PostfixDecrement | Ast.PostfixIncrement)) -> ()
+      | _ ->
+        let error_msg =
+          "The type "
+          ^ string_of_type expr_type
+          ^ " has no unary '"
+          ^ (Ast.string_of_unary_op op)
+          ^ "' operator."
+        in
+        let new_ctx = emit_error ctx_after_expr span error_msg in
+        (new_ctx, UnknownType, None)
+
+    end
 
 (** Compiles an assignment expression. *)
 and compile_assign context = function

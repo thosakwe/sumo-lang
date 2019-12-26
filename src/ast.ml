@@ -119,6 +119,16 @@ let string_of_binary_op = function
   | BooleanAnd -> "&&"
   | BooleanOr -> "||"
 
+let string_of_unary_op = function
+  | PrefixDecrement
+  | PostfixDecrement -> "--"
+  | PrefixIncrement
+  | PostfixIncrement -> "++"
+  | UnaryPlus -> "+"
+  | UnaryMinus -> "-"
+  | LogicalNot -> "!"
+  | BitwiseNot -> "~"
+
 let expr_of_assign_target = function
   | VariableTarget (span, name) -> Ref (span, name)
 

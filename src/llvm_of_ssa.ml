@@ -334,6 +334,10 @@ and compile_value context span value =
       let result = f llvm_lhs llvm_rhs "tmp" context.builder in
       (ctx_after_rhs, result)
     end
+  | BooleanNegate inner -> 
+    let (ctx_after_inner, llvm_inner) = compile_value context span inner in
+    let result = Llvm.build_neg llvm_inner "tmp" context.builder in
+    (ctx_after_inner, result)
   | VarGet (name, _) ->
     if not (Scope.mem name context.scope) then
       let error_msg =
