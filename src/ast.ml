@@ -27,7 +27,7 @@ and assign_op =
 and block = stmt list
 and typ =
   | TypeRef of span * string
-  (* | OptionalType of span * typ *)
+  | OptionalType of span * typ
 and expr =
   | Ref of span * string
   | IntLiteral of span * int

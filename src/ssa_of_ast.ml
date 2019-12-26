@@ -843,6 +843,12 @@ and compile_type context = function
         | TypeSymbol typ -> (context, typ)
         | _ as sym -> not_a_type sym
     end
+  | Ast.OptionalType (_, inner) -> begin
+      match compile_type context inner with
+      | (new_ctx, UnknownType) -> (new_ctx, UnknownType)
+      | (new_ctx, OptionalType inner) -> (new_ctx, OptionalType inner)
+      | (new_ctx, t) -> (new_ctx, OptionalType t)
+    end
 
 and handle_dead_code span initial_context =
   if initial_context.block_is_dead then
