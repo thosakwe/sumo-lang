@@ -937,22 +937,32 @@ and cast_value context span value_opt from_type to_type =
   if from_type = to_type then
     (context, Ok value_opt)
   else
+    let double_to_int_warning = "Casting a double to int loses precision." in
+
     match (from_type, to_type, value_opt) with
     | (IntType, DoubleType, Some value) ->
       let new_value = Some (CastIntToDouble value) in
       (context, Ok new_value)
     | (DoubleType, IntType, Some value) ->
       let new_value = Some (CastDoubleToInt value) in
-      let warning_msg = "Casting a double to int loses precision." in
-      let new_ctx = emit_warning context span warning_msg in
+      let new_ctx = emit_warning context span double_to_int_warning in
       (new_ctx, Ok new_value)
     | (UnknownType, (OptionalType inner), (Some (OptionalNone UnknownType))) ->
       (context, Ok (Some (OptionalNone inner)))
-    | (_, (OptionalType inner), (Some value)) ->
-      if from_type = inner then
-        (context, Ok (Some (OptionalSome (inner, value))))
-      else 
-        failure
+    | (_, (OptionalType inner), (Some value)) -> begin
+        if from_type = inner then
+          (context, Ok (Some (OptionalSome (inner, value))))
+        else 
+          match (from_type, inner) with
+          | (IntType, DoubleType) ->
+            let new_value = Some ((OptionalSome (DoubleType, (CastIntToDouble value)))) in
+            (context, Ok new_value)
+          | (DoubleType, IntType) ->
+            let new_value = Some ((OptionalSome (IntType, (CastDoubleToInt value)))) in
+            let new_ctx = emit_warning context span double_to_int_warning in
+            (new_ctx, Ok new_value)
+          | _ -> failure
+      end
     | _ ->  failure
 
 (** Checks if a can be casted to b. *)

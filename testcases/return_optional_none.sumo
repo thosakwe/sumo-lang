@@ -1,3 +1,7 @@
+fn demo_none_infer() : double? {
+  return 3
+}
+
 fn main() : int {
   var x_opt : int? = none
   if (var x = x_opt) {
