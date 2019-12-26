@@ -7,11 +7,10 @@ let rec compile_single_ast path c_unit =
   (universe, context)
 
 and load_ast_into_universe universe path c_unit =
-  (* Before we actually compile anything, forward-declare all functions
+  (* Before we actually compile anything, forward-declare all functions/types
    * in the module. After this, then we can then compile the actual
    * functions, and then compile everything into LLVM. *)
   (* TODO: Imports *)
-  (* TODO: Forward-declare all types/records/structs before functions *)
 
   let default_context =
     let root_scope = Scope.of_seq (List.to_seq [
@@ -30,16 +29,16 @@ and load_ast_into_universe universe path c_unit =
       namer = Namer.empty;
     }
   in
-  let ref_context = ref { default_context with universe = universe } in
 
-  let symbols =
-    let pairs =
-      let pair_of_decl self =
+  (* TODO: Can symbols be resolved lazily? *)
+
+  let (ctx_after_symbols, symbols) =
+    let (ctx_after_pairs, pairs) =
+      let fold_decl (context, pair_list) self =
         match self with
         | Ast.FuncDecl (_, vis, func) -> begin
             let s = Ast.signature_of_func func in
-            let (new_ctx, params, returns) = compile_function_signature !ref_context s in
-            ref_context := new_ctx;
+            let (new_ctx, params, returns) = compile_function_signature context s in
             match func with
             | Ast.ExternalFunc (_, c_name_opt, name, _) ->
               let c_name =
@@ -48,16 +47,25 @@ and load_ast_into_universe universe path c_unit =
                 | Some cn -> cn
               in
               let symbol = FuncSymbol (true, c_name, params, returns, self) in
-              (name, (vis, symbol))
+              let pair = (name, (vis, symbol)) in
+              (new_ctx, pair_list @ [pair])
             | Ast.ConcreteFunc (_, name, _, _) ->
               let qualified = Sema.qualify_function_name path name in
               let symbol = FuncSymbol (false, qualified, params, returns, self) in
-              (name, (vis, symbol))
+              let pair = (name, (vis, symbol)) in
+              (new_ctx, pair_list @ [pair])
+          end
+        | Ast.TypeDecl (_, vis, name, typ) -> begin
+            let (new_ctx, ssa_typ) = compile_type context typ in
+            let symbol = TypeSymbol ssa_typ in
+            let pair = (name, (vis, symbol)) in
+            (new_ctx, pair_list @ [pair])
           end
       in
-      List.map pair_of_decl c_unit
+      let initial_context = { default_context with universe = universe } in
+      List.fold_left fold_decl (initial_context, []) c_unit
     in
-    StringMap.of_seq (List.to_seq pairs)
+    (ctx_after_pairs, (StringMap.of_seq (List.to_seq pairs)))
   in
 
   (* Now that we have a new universe, compile the bodies of each function. *)
@@ -72,8 +80,8 @@ and load_ast_into_universe universe path c_unit =
   (* TODO: Imports *)
   let unwrap_symbol (_, x) = x in
   let unwrapped_symbols = StringMap.map unwrap_symbol symbols in
-  let new_scope = Scope.ChildScope ((!ref_context).scope, unwrapped_symbols) in
-  let new_context = {!ref_context with scope = new_scope; universe = new_universe } in
+  let new_scope = Scope.ChildScope (ctx_after_symbols.scope, unwrapped_symbols) in
+  let new_context = {ctx_after_symbols with scope = new_scope; universe = new_universe } in
 
   (* Compile them, add them to the module, and return the universe. *)
   let compile_decl (context, out_list) = function
