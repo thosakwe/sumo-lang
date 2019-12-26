@@ -687,7 +687,17 @@ and compile_expr context = function
           | None -> failure
           | Some value -> (ctx_after_expr, IntType, (Some (BitwiseNegate value)))
         end
-      | (IntType, (Ast.UnaryPlus | Ast.UnaryMinus)) -> ()
+      | (IntType, (Ast.UnaryPlus | Ast.UnaryMinus)) -> begin
+          match value_opt with
+          | None -> failure
+          | Some value -> begin 
+              let result = match op with
+                | Ast.UnaryPlus -> Positive (IntType, value)
+                | _ -> Negative (IntType, value)
+              in
+              (ctx_after_expr, IntType, (Some result)) 
+            end
+        end
       | (IntType, (Ast.PrefixDecrement | Ast.PrefixIncrement 
                   | Ast.PostfixDecrement | Ast.PostfixIncrement)) -> ()
       | _ ->
