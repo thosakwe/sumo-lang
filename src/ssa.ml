@@ -41,7 +41,7 @@ and value =
   | IntLiteral of int
   | DoubleLiteral of float
   | BoolLiteral of bool
-  | StructLiteral of value StringMap.t
+  | StructLiteral of typ * (value StringMap.t)
   | VarGet of string * typ
   | ParamGet of int * string * typ
   | VarCreate of string * typ
@@ -71,9 +71,7 @@ let rec type_of_value = function
   | IntLiteral _ -> IntType
   | DoubleLiteral _ -> DoubleType
   | BoolLiteral _ -> BoolType
-  | StructLiteral values ->
-    let type_map = StringMap.map type_of_value values in
-    StructType type_map
+  | StructLiteral (typ, _) -> typ
   | VarGet (_, typ) -> typ
   | ParamGet (_, _, typ) -> typ
   | VarCreate (_, typ) -> typ
@@ -168,7 +166,7 @@ and string_of_value = function
   | IntLiteral v -> string_of_int v
   | DoubleLiteral v -> string_of_float v
   | BoolLiteral v -> string_of_bool v
-  | StructLiteral values ->
+  | StructLiteral (_, values) ->
     let fold_value name value out_list =
       let str = name ^ ": " ^ (string_of_value value) in
       out_list @ [str]

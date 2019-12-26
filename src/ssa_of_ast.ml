@@ -605,7 +605,7 @@ and compile_expr context = function
         let value_map = StringMap.of_seq (List.to_seq value_pairs) in
         let type_map = StringMap.of_seq (List.to_seq type_pairs) in
         let struct_type = StructType type_map in
-        let value = StructLiteral value_map in
+        let value = StructLiteral (struct_type, value_map) in
         (ctx_after_pairs, struct_type, Some value)
     end
   (* If we find a reference, just figure out if it's a value. *)

@@ -210,7 +210,7 @@ expr:
     { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.BooleanOr), v) }
 
 
-struct_value_field: n = id COLON v = expr { ($loc, n, v) }
+struct_value_field: n = id EQUALS v = expr { ($loc, n, v) }
 
 id:
   | v = UPPER_ID { v }

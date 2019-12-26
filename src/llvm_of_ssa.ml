@@ -482,6 +482,19 @@ and compile_value context span value =
     let ptr = Llvm.build_struct_gep llvm_value 1 "opt_get_value_ptr" new_ctx.builder in
     let result = Llvm.build_load ptr "opt_get" new_ctx.builder in
     (new_ctx, result)
+  | StructLiteral (struct_type, fields) -> begin
+      let llvm_struct_type = compile_type context.llvm_context struct_type in
+      let struct_pointer = Llvm.build_alloca llvm_struct_type "literal_struct_ptr" context.builder in
+      let fold_field name value (context, index) =
+        let (new_ctx, llvm_value) = compile_value context span value in
+        let field_ptr_name = "literal_struct_value_" ^ name in
+        let field_ptr = Llvm.build_struct_gep struct_pointer index field_ptr_name context.builder in
+        let _ = Llvm.build_store llvm_value field_ptr context.builder in
+        (new_ctx, index + 1)
+      in
+      let (new_ctx, _) = StringMap.fold fold_field fields (context, 0) in
+      (new_ctx, struct_pointer)
+    end
 
 and compile_function_signature llvm_context params returns =
   let llvm_params =
