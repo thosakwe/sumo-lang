@@ -949,7 +949,7 @@ and compile_type context = function
         (new_ctx, UnknownType)
       | _ ->
         let (new_ctx, ssa_fields) = List.fold_left fold_field (context, []) fields in
-        (new_ctx, StructType ssa_fields)
+        (new_ctx, StructType (StringMap.of_seq (List.to_seq ssa_fields)))
     end
 
 and handle_dead_code span initial_context =

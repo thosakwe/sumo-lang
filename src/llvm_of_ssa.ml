@@ -504,7 +504,11 @@ and compile_type context = function
     (* Llvm.pointer_type struct_type *)
     Llvm.pointer_type struct_type
   | StructType (fields) ->
-    let llvm_fields = List.map (function (_, typ) -> compile_type context typ) fields in
+    let fold_field _ typ out_list =
+      out_list @ [compile_type context typ]
+    in
+
+    let llvm_fields = StringMap.fold fold_field fields [] in
     let struct_type = Llvm.struct_type context (Array.of_list llvm_fields) in
     Llvm.pointer_type struct_type
   (* Note: This case should never be reached. *)
