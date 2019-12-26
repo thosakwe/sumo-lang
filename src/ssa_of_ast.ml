@@ -77,7 +77,9 @@ and load_ast_into_universe universe path c_unit =
 
   (* Compile them, add them to the module, and return the universe. *)
   let compile_decl (context, out_list) = function
-    | Ast.FuncDecl (_, _, func) -> compile_function (context, out_list) func
+    | Ast.FuncDecl (_, _, func) -> 
+      let (new_ctx, new_out_list) = compile_function (context, out_list) func in
+      ({ new_ctx with block_is_dead = false }, new_out_list)
     (* | _ -> (context, out_list) *)
   in
   let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) c_unit in
