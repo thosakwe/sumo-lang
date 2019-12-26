@@ -33,6 +33,7 @@ and typ =
   | DoubleType
   | BoolType
   | VoidType
+  | OptionalType of typ
   | UnknownType
 and value =
   | FunctionCall of typ * string * (value list)
@@ -137,6 +138,7 @@ and string_of_type = function
   | DoubleType -> "double"
   | BoolType -> "bool"
   | VoidType -> "void"
+  | OptionalType inner -> (string_of_type inner) ^ "?"
   | UnknownType -> "<unknown>"
 and string_of_value = function
   | IntLiteral v -> string_of_int v
