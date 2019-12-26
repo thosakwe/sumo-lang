@@ -144,6 +144,7 @@ else_clause: ELSE b = stmt { b }
 
 assign_target:
   | n = id { Ast.VariableTarget ($loc, n) }
+  | v = expr DOT n = id { Ast.FieldTarget ($loc, v, n) }
 
 var_decl:
   n = id t = option(var_type) EQUALS v = expr { ($loc, t, n, v) }
@@ -166,6 +167,7 @@ expr:
   | v = expr INCR { Ast.Unary ($loc, v, Ast.PostfixIncrement) }
   | v = expr DECR { Ast.Unary ($loc, v, Ast.PostfixDecrement) }
   | t = expr LPAREN a = separated_list(COMMA, expr) RPAREN { Ast.Call ($loc, t, a) }
+  | v = expr DOT n = id { Ast.GetField ($loc, v, n) }
   | INCR v = expr { Ast.Unary ($loc, v, Ast.PrefixIncrement) }
   | DECR v = expr { Ast.Unary ($loc, v, Ast.PrefixDecrement) }
   | PLUS v = expr { Ast.Unary ($loc, v, Ast.UnaryPlus) }
