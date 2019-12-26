@@ -1,3 +1,13 @@
+fn simple_pow(n: int, power: int) : int {
+  var out = n
+  var i = 0
+  while (i < power) {
+    out *= n
+    i += 1
+  }
+  return out
+}
+
 fn main() : int {
   var x = 20
   var i = 0
@@ -5,5 +15,5 @@ fn main() : int {
     i += 1
     x += 2
   }
-  return x
+  return x - simple_pow(2, 3)
 }
