@@ -397,12 +397,22 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
     end
   (* The for loop is just sugar for a while loop; treat it as such. *)
   | Ast.ForLoop (span, init_opt, cond, actions, body) -> begin
-    let (_, block_body) = Ast.block_of_stmt body in
-    let loop_body = block_body @ actions in
-    let while_loop = Ast.While (span, cond, Ast.Block (span, loop_body)) in
-    let init = match init_opt with None -> [] | Some v -> [v] in
-    let for_block = Ast.Block (span, init @ [while_loop]) in
-    compile_stmt (initial_context, out_list, expected_return) for_block
+      let context = handle_dead_code span initial_context in
+      let (_, block_body) = Ast.block_of_stmt body in
+      let loop_body = block_body @ actions in
+      let while_loop = Ast.While (span, cond, Ast.Block (span, loop_body)) in
+      let init = match init_opt with None -> [] | Some v -> [v] in
+
+      (* Compile each of the initializers, in turn. *)
+      let (ctx_after_init, out_list_after_init) =
+        let fold_initializer (context, out_list) stmt =
+          let (new_ctx, new_out_list, _) = compile_stmt (context, out_list, expected_return) stmt in
+          (new_ctx, new_out_list)
+        in
+        List.fold_left fold_initializer (context, out_list) init
+      in
+
+      compile_stmt (ctx_after_init, out_list_after_init, expected_return) while_loop
     end
 
 and compile_if_clause context clause name if_end_name expected_return =
