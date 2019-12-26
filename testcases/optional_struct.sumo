@@ -1,0 +1,13 @@
+type my_struct =
+  {
+    one: int
+    maybe_two: int?
+  }
+
+fn main() : int {
+  var x_opt : my_struct? = { one = 1, maybe_two = none}
+  if (var x = x_opt) {
+    return 23
+  }
+  return 45
+}
