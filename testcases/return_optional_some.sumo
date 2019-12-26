@@ -1,5 +1,5 @@
 fn main() : int {
-  var x_opt : int? = 14
+  var x_opt : int? = 14.5
   if (var x = x_opt) {
     return x * 2
   }
