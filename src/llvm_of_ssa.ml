@@ -456,7 +456,9 @@ and compile_value context span value =
       let bool_type = compile_type context.llvm_context BoolType in
       let llvm_type = compile_type context.llvm_context typ in
       let struct_type = Llvm.struct_type context.llvm_context [| bool_type; llvm_type |] in
-      let struct_pointer = Llvm.build_alloca struct_type "opt_new_struct_ptr" context.builder in
+      (* let struct_pointer = Llvm.build_alloca struct_type "opt_new_struct_ptr" context.builder in *)
+      (* TODO: Use GC *)
+      let struct_pointer = Llvm.build_malloc struct_type "opt_new_struct_ptr" context.builder in
       let bool_ptr = Llvm.build_struct_gep struct_pointer 0 "opt_bool_ptr" context.builder in
       let value_ptr = Llvm.build_struct_gep struct_pointer 1 "opt_value_ptr" context.builder in
       let new_ctx = match value with
