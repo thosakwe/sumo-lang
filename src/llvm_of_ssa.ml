@@ -483,8 +483,9 @@ and compile_value context span value =
     let result = Llvm.build_load ptr "opt_get" new_ctx.builder in
     (new_ctx, result)
   | StructLiteral (struct_type, fields) -> begin
-      let llvm_struct_type = compile_type context.llvm_context struct_type in
+      let llvm_struct_type = compile_struct_type context.llvm_context struct_type in
       let struct_pointer = Llvm.build_alloca llvm_struct_type "literal_struct_ptr" context.builder in
+      let _ = struct_pointer, fields in
       let fold_field name value (context, index) =
         let (new_ctx, llvm_value) = compile_value context span value in
         let field_ptr_name = "literal_struct_value_" ^ name in
@@ -517,15 +518,21 @@ and compile_type context = function
     (* Llvm.pointer_type struct_type *)
     Llvm.pointer_type struct_type
   | StructType (fields) ->
+    let struct_type = compile_struct_type context (StructType fields) in
+    Llvm.pointer_type struct_type
+  (* Note: This case should never be reached. *)
+  | UnknownType -> Llvm.void_type context
+
+and compile_struct_type context = function
+  | StructType (fields) ->
     let fold_field _ typ out_list =
       out_list @ [compile_type context typ]
     in
 
     let llvm_fields = StringMap.fold fold_field fields [] in
-    let struct_type = Llvm.struct_type context (Array.of_list llvm_fields) in
-    Llvm.pointer_type struct_type
+    Llvm.struct_type context (Array.of_list llvm_fields)
   (* Note: This case should never be reached. *)
-  | UnknownType -> Llvm.void_type context
+  | _ -> Llvm.void_type context
 
 (* and find_block name func =
    let rec find = function
