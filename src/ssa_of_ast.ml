@@ -77,15 +77,29 @@ and load_ast_into_universe universe path c_unit =
 
   (* Compile them, add them to the module, and return the universe. *)
   let compile_decl (context, out_list) = function
-    | Ast.FuncDecl (_, _, func) -> 
-      let (new_ctx, new_out_list) = compile_function (context, out_list) func in
-      ({ new_ctx with block_is_dead = false }, new_out_list)
+    | Ast.FuncDecl (span, _, func) -> begin
+        let (new_ctx, new_out_list, returns_opt) = compile_function (context, out_list) func in
+        let result_ctx = match returns_opt with
+          | None | Some VoidType -> new_ctx
+          | Some returns -> 
+            if new_ctx.block_is_dead then
+              new_ctx
+            else
+              let error_message =
+                "This function is declared to return "
+                ^ (string_of_type returns)
+                ^ ", but doesn't return a value through all paths."
+              in
+              emit_error new_ctx span error_message
+        in
+        ({ result_ctx with block_is_dead = false }, new_out_list)
+      end
     (* | _ -> (context, out_list) *)
   in
   let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) c_unit in
   this_module := {!this_module with compiled_functions };
 
-  (final_ctx, new_universe)
+  ({ final_ctx with block_is_dead = false }, new_universe)
 
 and compile_function_signature context (_, params, returns) =
   let compile_one_type (context, type_list) = function
@@ -101,7 +115,7 @@ and compile_function_signature context (_, params, returns) =
   (new_ctx, param_types, return_type)
 
 and compile_function (context, out_list) = function
-  | Ast.ExternalFunc _ -> (context, out_list)
+  | Ast.ExternalFunc _ -> (context, out_list, None)
   | Ast.ConcreteFunc (span, name, fsig, block) ->
     compile_concrete_function context out_list (span, name, fsig, block)
 
@@ -110,7 +124,7 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
   if not (StringMap.mem context.this_module context.universe.modules) then
     let error_msg = "No module exists at path \"" ^ context.this_module ^ "\"." in
     let new_ctx = emit_error context span error_msg in
-    (new_ctx, out_list)
+    (new_ctx, out_list, None)
   else
     (* Figure out which module we are in, so we can then work out the qualified name. *)
     let this_module = StringMap.find context.this_module context.universe.modules in
@@ -149,7 +163,7 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
 
     (* Finally, just create the function object. *)
     let func = (qualified, params, returns, instrs) in
-    (ctx_after_stmts, out_list @ [func])
+    (ctx_after_stmts, out_list @ [func], Some returns)
 
 and compile_stmt (initial_context, out_list, expected_return) stmt = 
   (* If the current block has already returned/broken, issue a warning. *)
