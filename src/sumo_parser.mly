@@ -1,6 +1,6 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS PIPE SEMI QUESTION
-%token DO ELSE EXTERNAL FINAL FN IF RETURN THIS VAR WHILE
+%token DO ELSE EXTERNAL FINAL FN FOR IF RETURN THIS VAR WHILE
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
 %token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR INCR DECR BOOL_NOT BW_NOT
@@ -121,6 +121,8 @@ stmt:
     { Ast.If ($loc, i, [], e) }
   | WHILE c = expr b = stmt { Ast.While ($loc, c, b) }
   | DO b = stmt WHILE c = expr { Ast.DoWhile ($loc, b, c) }
+  | FOR LPAREN i = option(stmt) SEMI c = expr SEMI p = separated_list(SEMI, stmt)
+    { Ast.ForLoop ($loc, i, c, p) }
 
 if_clause:
   | IF LPAREN c = expr RPAREN b = stmt { Ast.BasicIfClause ($loc, c, b) }

@@ -13,7 +13,7 @@ and stmt =
   | If of span * if_clause * (if_clause list) * (stmt option)
   | While of span * expr * stmt
   | DoWhile of span * stmt * expr
-  | ForLoop of span * (stmt list) * expr * (stmt list)
+  | ForLoop of span * (stmt option) * expr * (stmt list)
 and var_decl = span * bool * (typ option) * string * expr
 and if_clause =
   | BasicIfClause of span * expr * stmt

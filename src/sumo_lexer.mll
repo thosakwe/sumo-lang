@@ -73,6 +73,7 @@ rule read = parse
   | "external" { EXTERNAL }
   | "final" { FINAL }
   | "fn" { FN }
+  | "for" { FOR }
   | "if" { IF }
   | "public" { VIS Visibility.Public }
   | "protected" { VIS Visibility.Protected }
