@@ -485,7 +485,8 @@ and compile_type context = function
   | OptionalType inner ->
     let llvm_inner = compile_type context inner in
     let bool_type = compile_type context BoolType in
-    Llvm.struct_type context [| bool_type; llvm_inner |]
+    let struct_type = Llvm.struct_type context [| bool_type; llvm_inner |] in
+    Llvm.pointer_type struct_type
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
 

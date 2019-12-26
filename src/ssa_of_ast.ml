@@ -459,7 +459,6 @@ and compile_if_clause context clause name if_end_name expected_return =
                 let (ctx_after_rhs, rhs_type, rhs_opt) = compile_expr context rhs_ast in
                 match (rhs_type, rhs_opt) with
                 (* If the value exists, then dereference it, and inject it into the scope. *)
-                (* TODO: Dereferencing *)
                 | ((OptionalType inner_type), (Some rhs)) ->
                   let (deref_name, namer_after_deref) = Namer.next_name "deref" ctx_after_rhs.namer in
                   let deref_symbol = VarSymbol (final, deref_name, inner_type) in
