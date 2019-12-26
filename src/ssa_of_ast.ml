@@ -212,27 +212,39 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
             | Some t -> compile_type new_ctx t
           in
 
-          match cast_value ctx_after_type span value_opt typ target_type with
-          | (ctx_after_cast, Error _) ->
-            (ctx_after_cast, out_list)
-          | (ctx_after_cast, Ok coerced_value_opt) -> begin
-              match coerced_value_opt with
-              | None -> 
-                let error_msg =
-                  "The right-hand side of this variable declaration did not produce a valid value."
-                in
-                ((emit_error ctx_after_cast span error_msg), out_list)
-              | Some coerced_value ->
-                (* TODO: SSA variables - get a unique name for each *)
-                let ssa_name = name in
-                let sym = VarSymbol (final, ssa_name, target_type) in
-                let new_scope = Scope.add name sym context.scope in
-                let new_instrs = [
-                  (span, Value (VarCreate (ssa_name, target_type)));
-                  (span, Value (VarSet (ssa_name, target_type, coerced_value)));
-                ]
-                in
-                (({ ctx_after_cast with scope = new_scope }), (out_list @ new_instrs))
+          match target_type with 
+          | UnknownType -> begin
+              let error_msg = match value_opt with
+                | Some (OptionalNone UnknownType) -> 
+                  "If the right-hand side of a variable declaration is \"none\", you must declare its type."
+                | _ ->
+                  "The right-hand side of this variable declaration produced a value of unknown type."
+              in
+              ((emit_error ctx_after_type span error_msg), out_list)
+            end
+          | _ -> begin
+              match cast_value ctx_after_type span value_opt typ target_type with
+              | (ctx_after_cast, Error _) ->
+                (ctx_after_cast, out_list)
+              | (ctx_after_cast, Ok coerced_value_opt) -> begin
+                  match coerced_value_opt with
+                  | None -> 
+                    let error_msg =
+                      "The right-hand side of this variable declaration did not produce a valid value."
+                    in
+                    ((emit_error ctx_after_cast span error_msg), out_list)
+                  | Some coerced_value ->
+                    (* TODO: SSA variables - get a unique name for each *)
+                    let ssa_name = name in
+                    let sym = VarSymbol (final, ssa_name, target_type) in
+                    let new_scope = Scope.add name sym context.scope in
+                    let new_instrs = [
+                      (span, Value (VarCreate (ssa_name, target_type)));
+                      (span, Value (VarSet (ssa_name, target_type, coerced_value)));
+                    ]
+                    in
+                    (({ ctx_after_cast with scope = new_scope }), (out_list @ new_instrs))
+                end
             end
         end
     in

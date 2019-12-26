@@ -425,31 +425,40 @@ and compile_value context span value =
       let result = variable in
       let new_scope = Scope.replace name result context.scope in
       ({ new_ctx with scope = new_scope }, variable)
-  | FunctionCall (returns, name, args) ->
-    match Llvm.lookup_function name context.llvm_module with
-    | None ->
-      let error_msg = Scope.does_not_exist name in
-      let new_ctx = emit_error context span error_msg in
-      let dump_pair name _ =
-        print_endline name
-      in
-      Scope.iter dump_pair context.scope;
-      (new_ctx, Llvm.const_null (Llvm.i64_type context.llvm_context))
-    | Some target ->
-      let (new_ctx, llvm_args) =
-        let compile_arg (context, out_list) arg =
-          let (new_ctx, value) = compile_value context span arg in
-          (new_ctx, out_list @ [value])
+  | FunctionCall (returns, name, args) -> begin
+      match Llvm.lookup_function name context.llvm_module with
+      | None ->
+        let error_msg = Scope.does_not_exist name in
+        let new_ctx = emit_error context span error_msg in
+        let dump_pair name _ =
+          print_endline name
         in
-        List.fold_left compile_arg (context, []) args
-      in
-      (* If the function returns void, return no value. *)
-      let return_name =
-        match returns with
-        | VoidType -> ""
-        | _ -> "tmp"
-      in
-      (new_ctx, Llvm.build_call target (Array.of_list llvm_args) return_name new_ctx.builder)
+        Scope.iter dump_pair context.scope;
+        (new_ctx, Llvm.const_null (Llvm.i64_type context.llvm_context))
+      | Some target ->
+        let (new_ctx, llvm_args) =
+          let compile_arg (context, out_list) arg =
+            let (new_ctx, value) = compile_value context span arg in
+            (new_ctx, out_list @ [value])
+          in
+          List.fold_left compile_arg (context, []) args
+        in
+        (* If the function returns void, return no value. *)
+        let return_name =
+          match returns with
+          | VoidType -> ""
+          | _ -> "tmp"
+        in
+        (new_ctx, Llvm.build_call target (Array.of_list llvm_args) return_name new_ctx.builder)
+    end
+  | OptionalSome (typ, _)
+  | OptionalNone typ ->
+    let bool_type = compile_type context.llvm_context BoolType in
+    let llvm_type = compile_type context.llvm_context typ in
+    let struct_type = Llvm.struct_type context.llvm_context [| bool_type; llvm_type |] in
+    let struct_pointer = Llvm.build_alloca struct_type "tmp" context.builder in
+    (* TODO: ... *)
+    (context, struct_pointer)
 
 and compile_function_signature llvm_context params returns =
   let llvm_params =
