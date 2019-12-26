@@ -1,3 +1,5 @@
+module StringMap = Map.Make(String)
+
 type compilation_unit = decl list
 and decl =
   | FuncDecl of span * Visibility.t * func

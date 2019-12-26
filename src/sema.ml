@@ -1,4 +1,4 @@
-module StringMap = Map.Make(String)
+module StringMap = Ast.StringMap
 
 type universe =
   {

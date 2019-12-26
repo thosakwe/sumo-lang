@@ -5,5 +5,9 @@ type my_struct =
   }
 
 fn main() : int {
-  var x : my_struct? = none
+  var x_opt : my_struct? = none
+  if (var x = x_opt) {
+    return 23
+  }
+  return 45
 }
