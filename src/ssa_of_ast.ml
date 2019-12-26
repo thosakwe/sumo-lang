@@ -575,6 +575,39 @@ and compile_expr context = function
   | Ast.BoolLiteral (_, v) -> (context, BoolType, Some (BoolLiteral v))
   | Ast.Paren (_, inner) -> compile_expr context inner
   | Ast.NoneLiteral -> (context, UnknownType, Some (OptionalNone UnknownType))
+  | Ast.StructLiteral (span, fields) -> begin
+      (* Warn on duplicates *)
+      let fold_field (context, value_pairs, type_pairs) (span, name, value_ast) =
+        let name_is_equal (n, _) = (n = name) in
+        match List.find_opt name_is_equal value_pairs with
+        | Some _ -> 
+          let error_msg = "Duplicate structure field \"" ^ name ^ "\"." in
+          let new_ctx = emit_error context span error_msg in
+          (new_ctx, value_pairs, type_pairs)
+        | None -> begin
+            match  compile_expr context value_ast with
+            | (new_ctx, _, None) -> (new_ctx, value_pairs, type_pairs)
+            | (new_ctx, typ, (Some value)) -> 
+              let value_pair = (name, value) in
+              let type_pair = (name, typ) in
+              (new_ctx, value_pairs @ [value_pair], type_pairs @ [type_pair])
+          end
+      in
+      let (ctx_after_pairs, value_pairs, type_pairs) =
+        List.fold_left fold_field (context, [], []) fields
+      in
+      match value_pairs with
+      | [] ->
+        let error_msg = "A structure literal must contain at least one field." in
+        let new_ctx = emit_error ctx_after_pairs span error_msg in
+        (new_ctx, UnknownType, None)
+      | _ ->
+        let value_map = StringMap.of_seq (List.to_seq value_pairs) in
+        let type_map = StringMap.of_seq (List.to_seq type_pairs) in
+        let struct_type = StructType type_map in
+        let value = StructLiteral value_map in
+        (ctx_after_pairs, struct_type, Some value)
+    end
   (* If we find a reference, just figure out if it's a value. *)
   | Ast.Ref (span, name) -> begin
       if not (Scope.mem name context.scope) then
