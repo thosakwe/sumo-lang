@@ -434,56 +434,63 @@ and compile_if_clause context clause name if_end_name expected_return =
 
   (* Compile the if condition. The logic for actually executing the body is identical
    * for all cases, so combine them. *)
-  let (ctx_after_cond, compiled_cond_opt) = match clause with
+  let (ctx_after_cond, compiled_cond_opt, prelude) = match clause with
     | Ast.BasicIfClause (span, cond, _) -> begin
         let (ctx_after_expr, typ, value_opt) = compile_expr context cond in
         match cast_value ctx_after_expr span value_opt typ BoolType with
         | (new_ctx, Error _) 
-        | (new_ctx, Ok (None)) -> (new_ctx, None)
-        | (ctx_after_cast, Ok (Some coerced_cond)) -> (ctx_after_cast, Some coerced_cond)
+        | (new_ctx, Ok (None)) -> (new_ctx, (None), [])
+        | (ctx_after_cast, Ok (Some coerced_cond)) -> (ctx_after_cast, (Some coerced_cond), [])
       end
     (* The input values must all be optionals. The clause will only execute if
      * all of them have valid values. *)
     | Ast.NullCheckIfClause (span, decls, _) -> begin
         if decls = [] then
           let error_msg = "A null-checking if statement must contain at least one variable declaration." in
-          ((emit_error context span error_msg), None)
+          ((emit_error context span error_msg), (None), [])
         else
-          let compile_one_decl (context, conditions) (span, final, type_opt, name, rhs_ast) = 
+          let compile_one_decl (context, conditions, prelude) (span, final, type_opt, name, rhs_ast) = 
             (* These variable declarations must not declare a type. *)
             match type_opt with
             | Some _ -> 
               let error_msg = "This variable declaration must not declare its own type." in
-              ((emit_error context span error_msg), conditions)
+              ((emit_error context span error_msg), conditions, prelude)
             | _ -> begin
-                let (ctx_after_rhs, rhs_type, _) = compile_expr context rhs_ast in
-                match rhs_type with
+                let (ctx_after_rhs, rhs_type, rhs_opt) = compile_expr context rhs_ast in
+                match (rhs_type, rhs_opt) with
                 (* If the value exists, then dereference it, and inject it into the scope. *)
                 (* TODO: Dereferencing *)
-                | OptionalType inner ->
-                  let deref_symbol = VarSymbol (final, name, inner) in
+                | ((OptionalType inner_type), (Some rhs)) ->
+                  let (deref_name, namer_after_deref) = Namer.next_name "deref" ctx_after_rhs.namer in
+                  let deref_symbol = VarSymbol (final, deref_name, inner_type) in
                   let new_scope_map = StringMap.add name deref_symbol StringMap.empty in
                   let new_scope = Scope.ChildScope (ctx_after_rhs.scope, new_scope_map) in
-                  let new_ctx = { ctx_after_rhs with scope = new_scope; } in
-                  (new_ctx, conditions)
+                  let new_ctx = { ctx_after_rhs with scope = new_scope; namer = namer_after_deref; } in
+                  let new_prelude = [
+                    (span, Value (VarCreate (deref_name, inner_type)));
+                    let deref = OptionalGet (inner_type, rhs) in
+                    (span, Value (VarSet (deref_name, inner_type, deref)));
+                  ]
+                  in
+                  (new_ctx, conditions @ [OptionalNullCheck rhs], prelude @ new_prelude)
                 | _ ->
                   let error_msg = "Every variable in a null-checking if statement must have an optional type." in
-                  ((emit_error ctx_after_rhs span error_msg), conditions)
+                  ((emit_error ctx_after_rhs span error_msg), conditions, prelude)
               end
 
           in
 
           (* Compile all decls, and return the new scope and condition.
            * All conditions must be reduced into a single AND. *)
-          let (ctx_after_decls, conditions) = List.fold_left compile_one_decl (context, []) decls in
+          let (ctx_after_decls, conditions, prelude) = List.fold_left compile_one_decl (context, [], []) decls in
           match conditions with
           | [] -> 
             let error_msg = "Every variable declaration in this if statement produced an error." in
-            ((emit_error ctx_after_decls span error_msg), None)
+            ((emit_error ctx_after_decls span error_msg), None, [])
           | _ ->
             let make_and a b =  BoolCompare (a, Ast.BooleanAnd, b) in
-            let combined_condition = List.fold_left make_and (BoolLiteral false) conditions in
-            (ctx_after_decls, Some combined_condition)
+            let combined_condition = List.fold_left make_and (BoolLiteral true) conditions in
+            (ctx_after_decls, Some combined_condition, prelude)
       end
   in
   match compiled_cond_opt with
@@ -497,7 +504,7 @@ and compile_if_clause context clause name if_end_name expected_return =
 
       let (ctx_after_block, block_instrs, _) =
         let (_, body_block) = Ast.block_of_stmt body in
-        compile_block_extra name ctx_after_cond expected_return (span, body_block) true [] []
+        compile_block_extra name ctx_after_cond expected_return (span, body_block) true prelude []
       in
       let final_ctx = { ctx_after_block with block_is_dead = context.block_is_dead } in
       Ok (final_ctx, compiled_cond, block_instrs @ [(span, Jump if_end_name)])

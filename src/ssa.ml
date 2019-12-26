@@ -56,6 +56,8 @@ and value =
   | Negative of typ * value
   | OptionalNone of typ
   | OptionalSome of typ * value
+  | OptionalNullCheck of value
+  | OptionalGet of typ * value
 
 let default_universe =
   {
@@ -91,6 +93,8 @@ let rec type_of_value = function
   | Negative (typ, _) -> typ
   | OptionalNone typ -> typ
   | OptionalSome (typ, _) -> typ
+  | OptionalNullCheck _ -> BoolType
+  | OptionalGet (typ, _) -> typ
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -179,6 +183,8 @@ and string_of_value = function
   | OptionalSome (typ, value) ->
     "some(" ^ (string_of_type typ)
     ^ ", " ^ (string_of_value value) ^ ")"
+  | OptionalNullCheck inner -> "not_null? " ^ (string_of_value inner)
+  | OptionalGet (_, inner) -> "*" ^ (string_of_value inner)
 
 let dump_module _ module_ref =
   let m = !module_ref in

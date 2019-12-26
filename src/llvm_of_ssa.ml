@@ -243,7 +243,7 @@ and compile_value context span value =
       let (ctx_after_lhs, llvm_lhs) = compile_value context span lhs in
       let (ctx_after_rhs, llvm_rhs) = compile_value ctx_after_lhs span rhs in
       let f = match op with
-        | Ast.Multiply -> Llvm.build_add
+        | Ast.Multiply -> Llvm.build_mul
         | Ast.Divide -> Llvm.build_sdiv
         | Ast.Modulo -> Llvm.build_srem
         | Ast.Plus -> Llvm.build_add
@@ -459,6 +459,14 @@ and compile_value context span value =
     let struct_pointer = Llvm.build_alloca struct_type "tmp" context.builder in
     (* TODO: ... *)
     (context, struct_pointer)
+  | OptionalNullCheck _ ->
+    (context, zero)
+  | OptionalGet _ ->
+    (context, zero)
+    (* let (new_ctx, llvm_value) = compile_value context span value in
+    let ptr = Llvm.build_struct_gep llvm_value 0 "tmp" new_ctx.builder in
+    let result = Llvm.build_load ptr "tmp" new_ctx.builder in
+    (new_ctx, result) *)
 
 and compile_function_signature llvm_context params returns =
   let llvm_params =
