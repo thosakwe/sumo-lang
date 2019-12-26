@@ -18,26 +18,26 @@
 
 %token EOF
 
-%left LPAREN
-%left INCR DECR
-%left BOOL_NOT BW_NOT
-%left TIMES DIV MOD
-%left PLUS MINUS
-%left SHL SHR
-%left LT LTE
-%left GT GTE
-%left BOOL_EQ BOOL_NEQ
-%left BW_AND
-%left BW_XOR
-%left BW_OR
-%left BOOL_AND BOOL_OR
-%left TIMES_EQUALS DIV_EQUALS MOD_EQUALS
-%left PLUS_EQUALS MINUS_EQUALS
-%left SHL_EQUALS SHR_EQUALS
-%left BW_AND_EQUALS
-%left BW_XOR_EQUALS
-%left BW_OR_EQUALS
 %left BOOL_AND_EQUALS BOOL_OR_EQUALS
+%left BW_OR_EQUALS
+%left BW_XOR_EQUALS
+%left BW_AND_EQUALS
+%left SHL_EQUALS SHR_EQUALS
+%left PLUS_EQUALS MINUS_EQUALS
+%left TIMES_EQUALS DIV_EQUALS MOD_EQUALS
+%left BOOL_AND BOOL_OR
+%left BW_OR
+%left BW_XOR
+%left BW_AND
+%left BOOL_EQ BOOL_NEQ
+%left GT GTE
+%left LT LTE
+%left SHL SHR
+%left PLUS MINUS
+%left TIMES DIV MOD
+%left BOOL_NOT BW_NOT
+%left INCR DECR
+%left LPAREN
 
 %start <Ast.compilation_unit> compilation_unit
 
