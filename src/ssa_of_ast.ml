@@ -190,7 +190,8 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
   | Ast.Return (span, value_opt) -> begin
       let context = handle_dead_code span initial_context in
       let (new_ctx, actual_return_type, value) = match value_opt with
-        | None -> (context, VoidType, None)
+        | None -> 
+          (context, VoidType, None)
         (* If we are returning a value, compile it, and compare the resulting type. *)
         | Some v -> begin
             let (new_ctx, typ, value) = compile_expr context v in
@@ -340,10 +341,10 @@ and compile_stmt (initial_context, out_list, expected_return) stmt =
               in
               let (next_ctx, next_block_name) =
                 match rest with
-                | [] -> (context, final_jump_target)
+                | [] -> (ctx_after_clause, final_jump_target)
                 | _ ->
-                  let (block_name, next_namer) = Namer.next_name "if_alt" context.namer in
-                  ({ ctx_after_clause with namer = next_namer; block_is_dead = context.block_is_dead; }, block_name)
+                  let (block_name, next_namer) = Namer.next_name "if_alt" ctx_after_clause.namer in
+                  ({ ctx_after_clause with namer = next_namer; block_is_dead = ctx_after_clause.block_is_dead; }, block_name)
               in
 
               let new_instrs = [
