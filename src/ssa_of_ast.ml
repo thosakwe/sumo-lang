@@ -1140,7 +1140,40 @@ and cast_value context span value_opt from_type to_type =
             (new_ctx, Ok new_value)
           | _ -> failure
       end
-    (* TODO: Struct type casting *)
+    (* To cast one struct to another, make sure they have the same names.
+     * If so, then try to cast each "from" value to the corresponding "to" type.
+     * If everything works, return a StructLiteral. *)
+    | (StructType from_types, StructType to_types, Some value) -> begin
+        let names map =
+          let fold_name name _ out_list = out_list @ [name] in
+          StringMap.fold fold_name map [] 
+        in
+        let from_names, to_names = (names from_types), (names to_types) in
+        if from_names <> to_names then
+          failure
+        else
+          let fold_field name from_type (context, pair_list, index, success) =
+            let to_type = StringMap.find name to_types in
+            let get_field = GetElement (from_type, value, index) in
+            match cast_value context span (Some get_field) from_type to_type with
+            | (ctx_after_cast, Error _)
+            | (ctx_after_cast, Ok None) ->
+              (ctx_after_cast, pair_list, index + 1, false)
+            | (ctx_after_cast, Ok (Some coerced_value)) ->
+              let new_pair = (name, coerced_value) in
+              (ctx_after_cast, pair_list @ [new_pair], index + 1, success)
+          in
+          let (ctx_after_fields, pair_list, _, success) =
+            StringMap.fold fold_field from_types (context, [], 0, true)
+          in
+          if not success then
+            (ctx_after_fields, Error ())
+          else
+            let value_map = StringMap.of_seq (List.to_seq pair_list) in
+            let coerced_value = StructLiteral (to_type, value_map) in
+            (ctx_after_fields, Ok (Some coerced_value))
+      end
+    (* TODO: Optional struct casts? *)
     | _ ->  failure
 
 (** Checks if a can be casted to b. *)
