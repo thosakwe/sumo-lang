@@ -15,6 +15,7 @@
 %token <float> DOUBLE
 %token <bool> BOOL
 %token NONE
+%token <string> STRING
 %token <string> LOWER_ID UPPER_ID
 
 %token EOF
