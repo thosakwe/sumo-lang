@@ -1,3 +1,3 @@
-fn times_two(x: int) : int {
+public fn times_two(x: int) : int {
   return x * 2
 }

@@ -430,7 +430,7 @@ and compile_value context span value =
   | FunctionCall (returns, name, args) -> begin
       match Llvm.lookup_function name context.llvm_module with
       | None ->
-        let error_msg = Scope.does_not_exist name in
+        let error_msg = "LLVM compiler error: " ^ (Scope.does_not_exist name) in
         let new_ctx = emit_error context span error_msg in
         let dump_pair name _ =
           print_endline name

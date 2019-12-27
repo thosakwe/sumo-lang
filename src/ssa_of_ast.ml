@@ -702,7 +702,7 @@ and compile_expr context = function
   (* If we find a reference, just figure out if it's a value. *)
   | Ast.Ref (span, name) -> begin
       if not (Scope.mem name context.scope) then
-        let error_msg = Scope.does_not_exist name in
+        let error_msg = (Scope.does_not_exist name) ^ " It cannot be referenced." in
         ((emit_error context span error_msg), UnknownType, None)
       else
         let not_a_value sym = 
@@ -1053,7 +1053,7 @@ and compile_assign context = function
    * In addition, we must be able to cast the value to whatever type is expected. *)
   | (span, Ast.VariableTarget(_, name), Ast.Equals, rhs) -> begin
       if not (Scope.mem name context.scope) then
-        let error_msg = Scope.does_not_exist name in
+        let error_msg = (Scope.does_not_exist name) ^ " It cannot be assigned." in
         let new_ctx = emit_error context span error_msg in
         (new_ctx, UnknownType, None)
       else
