@@ -176,7 +176,7 @@ and string_of_type = function
       else
         "{ " ^ field_str ^ " }"
     end
-  | Class _ -> "TODO: string_of_class"
+  | Class (name, _, _) -> "class " ^ name ^ " {}"
 and string_of_value = function
   | IntLiteral v -> string_of_int v
   | DoubleLiteral v -> string_of_float v
