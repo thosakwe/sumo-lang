@@ -146,7 +146,7 @@ and load_ast_into_universe universe path (directives, decls) =
   let this_module = ref { path; symbols; compiled_functions = [] } in
   let new_universe =
     {
-      modules = StringMap.add path this_module universe.modules
+      modules = StringMap.add path this_module ctx_after_imports.universe.modules
     }
   in
 
@@ -1165,10 +1165,6 @@ and compile_type context = function
           "No type named \"" ^ name ^ "\" exists in this context."
         in
         let new_ctx = emit_error context span error_msg in
-        let ff name _ =
-          print_endline name
-        in
-        Scope.iter ff context.scope;
         (new_ctx, UnknownType)
       else
         let not_a_type sym =
