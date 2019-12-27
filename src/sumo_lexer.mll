@@ -73,11 +73,14 @@ rule read = parse
   | "final" { FINAL }
   | "fn" { FN }
   | "for" { FOR }
+  | "hide" { HIDE }
   | "if" { IF }
+  | "import" { IMPORT }
   | "public" { VIS Visibility.Public }
   | "protected" { VIS Visibility.Protected }
   | "private" { VIS Visibility.Private }
   | "return" { RETURN }
+  | "show" { SHOW }
   | "this" { THIS }
   | "type" { TYPE }
   | "var" { VAR }
@@ -94,7 +97,7 @@ rule read = parse
   | upper_id { UPPER_ID (Lexing.lexeme lexbuf) }
 
   | eof { EOF }
-  
+
 and read_string buf =
   parse
   | '"'       { STRING (Buffer.contents buf) }

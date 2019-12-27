@@ -1,6 +1,11 @@
 module StringMap = Map.Make(String)
 
 type compilation_unit = decl list
+and directive =
+  | ImportDirective of span * string * (import_modifier option)
+and import_modifier =
+  | Show of span * ((span * string) list)
+  | Hide of span * ((span * string) list)
 and decl =
   | FuncDecl of span * Visibility.t * func
   | TypeDecl of span * Visibility.t * string * typ

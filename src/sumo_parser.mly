@@ -1,6 +1,7 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS SEMI QUESTION
-%token DO ELSE EXTERNAL FINAL FN FOR IF RETURN THIS TYPE VAR WHILE
+%token DO ELSE EXTERNAL FINAL FN FOR HIDE IF IMPORT RETURN
+%token SHOW THIS TYPE VAR WHILE
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
 %token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR INCR DECR BOOL_NOT BW_NOT
@@ -45,7 +46,14 @@
 
 %%
 
-compilation_unit: decls = list(decl) EOF { decls }
+compilation_unit: dirs = list(directive) decls = list(decl) EOF { (dirs, decls) }
+
+directive:
+  | IMPORT s = STRING m = option(import_modifier) { Ast.ImportDirective ($loc, s, m) }
+
+import_modifier:
+  | SHOW n = separated_list(COMMA, spanned_id) { Ast.Show ($loc, n) }
+  | HIDE n = separated_list(COMMA, spanned_id) { Ast.Hide ($loc, n) }
 
 decl:
   | v = vis f = func { Ast.FuncDecl ($loc, v, f) }
@@ -218,3 +226,5 @@ struct_value_field: n = id EQUALS v = expr { ($loc, n, v) }
 id:
   | v = UPPER_ID { v }
   | v = LOWER_ID { v }
+
+spanned_id: v = id { ($loc, v) }
