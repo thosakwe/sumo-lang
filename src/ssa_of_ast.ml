@@ -69,8 +69,13 @@ and load_ast_into_universe universe path (directives, decls) =
                 let new_ctx = emit_error context span error_msg in
                 (new_ctx, ([], []))
             in
+            (* Remove any compiled functions from the imported module. *)
             let (ctx_after_load, universe_after_load, imported_module) =
-              load_ast_into_universe ctx_after_parse.universe relative_path c_unit
+              let (ctx, univ, raw_imported_module) =
+                load_ast_into_universe ctx_after_parse.universe relative_path c_unit
+              in
+              let stripped_module = { !raw_imported_module with compiled_functions = [] } in
+              (ctx, univ, ref stripped_module)
             in
 
             (* Create symbols for everything in the module. *)
