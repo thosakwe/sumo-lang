@@ -68,9 +68,9 @@ let dump_error source_text e =
   print_string ": ";
   print_string color;
   print_string (Sema.string_of_error_level level);
+  print_string ": ";
   print_string resetAll;
   print_string bold;
-  print_string ": ";
   print_string error_msg;
   print_string resetAll;
   print_newline ();
