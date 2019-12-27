@@ -9,10 +9,16 @@ and import_modifier =
 and decl =
   | FuncDecl of span * Visibility.t * func
   | TypeDecl of span * Visibility.t * string * typ
+  | ClassDecl of span * bool * string * typ list * (class_member list)
 and func =
   | ConcreteFunc of span * string * func_signature * block
   | ExternalFunc of span * (string option) * string * func_signature
 and func_signature = span * (param list) * typ
+and class_member =
+  | ClassField of span * (class_member_modifier list) * bool * string * (typ option) * (expr option)
+and class_member_modifier =
+  | MemberVisibility of span * Visibility.t
+  | MemberFinality of span
 and stmt =
   | Block of span * block
   | Expr of span * expr
