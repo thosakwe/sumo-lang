@@ -95,6 +95,7 @@ rule read = parse
   | c_name { C_NAME (Lexing.lexeme lexbuf) }
   | lower_id { LOWER_ID (Lexing.lexeme lexbuf) }
   | upper_id { UPPER_ID (Lexing.lexeme lexbuf) }
+  | '"' { read_string (Buffer.create 17) lexbuf }
 
   | eof { EOF }
 

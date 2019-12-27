@@ -1,0 +1,6 @@
+import "./import_this.sumo"
+
+fn main() : int {
+  var x = do_it(4)
+  return x.value * 2
+}
