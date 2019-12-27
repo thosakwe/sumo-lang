@@ -24,6 +24,7 @@ let rec compile_universe module_path errors universe =
    * 3. Map each module's list of symbols into (name, LLVM values).
    * 4. Concat all these lists into one.
    * 5. Turn these pairs into a map. *)
+
   let map_of_all_symbols =
     let list_of_modules = List.of_seq (StringMap.to_seq universe.modules) in
     let list_of_symbols (path, m_ref) =

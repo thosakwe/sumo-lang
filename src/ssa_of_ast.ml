@@ -6,7 +6,7 @@ let rec compile_single_ast path c_unit =
   (* List.iter (function x -> prerr_endline (Sema.string_of_error x)) context.errors; *)
   (universe, context)
 
-and load_ast_into_universe universe path (_, decls) =
+and load_ast_into_universe universe path (directives, decls) =
   (* Before we actually compile anything, forward-declare all functions/types
    * in the module. After this, then we can then compile the actual
    * functions, and then compile everything into LLVM. *)
@@ -29,6 +29,44 @@ and load_ast_into_universe universe path (_, decls) =
       namer = Namer.empty;
     }
   in
+
+  let initial_context = { default_context with universe = universe } in
+
+  (* Load all imported modules, and extract imported symbols.
+   * We also need to warn on duplicate symbols.
+   * Lastly, we'll need to merge in the symbols from the current module.
+   * If the local module overrides a symbol, issue a warning. *)
+
+  (* TODO: Don't reload modules... *)
+  (* TODO: Load packages_path from config, if any. *)
+
+  let (ctx_after_imports, imported_symbols) =
+    let fold_import (context, out_list) = function
+      | Ast.ImportDirective (span, raw_import_path, modifier_opt) -> begin
+          let import_path = raw_import_path ^ ".sumo" in
+          let _ = span, modifier_opt in
+          let relative_path = Filename.concat (Filename.dirname path) import_path in
+          if not (Sys.file_exists relative_path) then
+            let error_msg =
+              "File does not exist: "
+              ^ Filename.quote relative_path
+              ^ "." 
+            in
+            let new_ctx = emit_error context span error_msg in
+            (new_ctx, out_list)
+          else if (import_path = path) || (relative_path = path) then
+            let error_msg = "A module cannot import itself." in
+            let new_ctx = emit_error context span error_msg in
+            (new_ctx, out_list)
+          else
+            
+            (context, out_list)
+        end
+      (* | _ -> out_list *)
+    in
+    List.fold_left fold_import (initial_context, []) directives
+  in
+  let _ = imported_symbols in
 
   (* TODO: Can symbols be resolved lazily? *)
 
@@ -62,8 +100,7 @@ and load_ast_into_universe universe path (_, decls) =
             (new_ctx, pair_list @ [pair])
           end
       in
-      let initial_context = { default_context with universe = universe } in
-      List.fold_left fold_decl (initial_context, []) decls
+      List.fold_left fold_decl (ctx_after_imports, []) decls
     in
     (ctx_after_pairs, (StringMap.of_seq (List.to_seq pairs)))
   in

@@ -1,4 +1,4 @@
-import "./import_this.sumo"
+import "import_this" hide nonexistent
 
 fn main() : int {
   var x = do_it(4)

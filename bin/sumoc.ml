@@ -42,12 +42,10 @@ let () =
       let lexbuf = Lexing.from_channel (open_in !in_file) in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = !in_file };
 
-      let c_unit = 
-        try 
-          Sumo_parser.compilation_unit Sumo_lexer.read lexbuf 
-        with
-        | Sumo_parser.Error ->
-          prerr_endline ("fatal error: syntax error at " ^ (Sema.string_of_position lexbuf.lex_curr_p));
+      let c_unit = match Utils.parse_compilation_unit !in_file with
+        | Ok result -> result
+        | Error error_msg ->
+          prerr_endline error_msg;
           ignore (exit 1);
           ([], [])
       in
