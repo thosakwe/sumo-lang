@@ -2,7 +2,7 @@ open Ssa
 open Ssa_context
 
 let rec compile_single_ast path c_unit =
-  let (context, universe) = load_ast_into_universe (Ssa.default_universe) path c_unit in
+  let (context, universe, _) = load_ast_into_universe (Ssa.default_universe) path c_unit in
   (* List.iter (function x -> prerr_endline (Sema.string_of_error x)) context.errors; *)
   (universe, context)
 
@@ -40,8 +40,8 @@ and load_ast_into_universe universe path (directives, decls) =
   (* TODO: Don't reload modules... *)
   (* TODO: Load packages_path from config, if any. *)
 
-  let (ctx_after_imports, imported_symbols) =
-    let fold_import (context, out_list) = function
+  let ctx_after_imports =
+    let fold_import context = function
       | Ast.ImportDirective (span, raw_import_path, modifier_opt) -> begin
           let import_path = raw_import_path ^ ".sumo" in
           let _ = span, modifier_opt in
@@ -53,20 +53,51 @@ and load_ast_into_universe universe path (directives, decls) =
               ^ "." 
             in
             let new_ctx = emit_error context span error_msg in
-            (new_ctx, out_list)
+            new_ctx
           else if (import_path = path) || (relative_path = path) then
             let error_msg = "A module cannot import itself." in
             let new_ctx = emit_error context span error_msg in
-            (new_ctx, out_list)
+            new_ctx
           else
-            
-            (context, out_list)
+            let (ctx_after_parse, c_unit) =
+              match Utils.parse_compilation_unit relative_path with
+              | Ok result -> (context, result)
+              | Error _ ->
+                let error_msg = "Failed to parse the module at this path; it cannot be imported." in
+                let new_ctx = emit_error context span error_msg in
+                (new_ctx, ([], []))
+            in
+            let (ctx_after_load, universe_after_load, imported_module) =
+              load_ast_into_universe ctx_after_parse.universe relative_path c_unit
+            in
+
+            (* Create symbols for everything in the module. *)
+            let fold_symbol name _ context =
+              if Scope.mem name context.scope then
+                let error_msg =
+                  "A symbol named \""
+                  ^ name
+                  ^ "\" was already defined before this import, so there is a conflict."
+                in
+                emit_error context span error_msg
+              else
+                let symbol = ImportedSymbol (imported_module, name) in
+                let new_scope = Scope.replace name symbol context.scope in
+                { context with scope = new_scope }
+            in
+
+            let ctx_before_fold =
+              {ctx_after_parse with 
+               errors = ctx_after_load.errors;
+               universe = universe_after_load;
+              } 
+            in
+            StringMap.fold fold_symbol (!imported_module).symbols ctx_before_fold
         end
       (* | _ -> out_list *)
     in
-    List.fold_left fold_import (initial_context, []) directives
+    List.fold_left fold_import initial_context directives
   in
-  let _ = imported_symbols in
 
   (* TODO: Can symbols be resolved lazily? *)
 
@@ -146,7 +177,7 @@ and load_ast_into_universe universe path (directives, decls) =
   let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) decls in
   this_module := {!this_module with compiled_functions };
 
-  ({ final_ctx with block_is_dead = false }, new_universe)
+  ({ final_ctx with block_is_dead = false }, new_universe, this_module)
 
 and compile_function_signature context (_, params, returns) =
   let compile_one_type (context, type_list) = function
