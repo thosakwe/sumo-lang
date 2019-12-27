@@ -67,6 +67,8 @@ rule read = parse
   | "&&=" { BOOL_AND_EQUALS }
   | "||=" { BOOL_OR_EQUALS }
 
+  | "abstract" { ABSTRACT }
+  | "class" { CLASS }
   | "do" { DO }
   | "else" { ELSE }
   | "external" { EXTERNAL }

@@ -1,7 +1,7 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS SEMI QUESTION
 %token DO ELSE EXTERNAL FINAL FN FOR HIDE IF IMPORT RETURN
-%token SHOW THIS TYPE VAR WHILE
+%token SHOW THIS TYPE VAR WHILE ABSTRACT CLASS
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
 %token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR INCR DECR BOOL_NOT BW_NOT
@@ -58,6 +58,33 @@ import_modifier:
 decl:
   | v = vis f = func { Ast.FuncDecl ($loc, v, f) }
   | v = vis TYPE n = id EQUALS t = typ { Ast.TypeDecl ($loc, v, n, t) }
+  | a = abstract;
+    CLASS;
+    n = id;
+    e = extends;
+    LCURLY;
+    m = list(class_member);
+    RCURLY;
+    {
+      Ast.ClassDecl ($loc, a, n, e, m)
+    }
+
+abstract:
+  | { false }
+  | ABSTRACT { true }
+
+extends:
+  | { [] }
+  | COLON v = separated_list(COMMA, typ) { v }
+
+class_member:
+  | m = list(cm_mod)
+    n = id
+    t = option(m_type)
+    v = option(m_expr)
+    {
+      Ast.ClassField ($loc, m, n, t, v)
+    }
 
 func:
   | FN name = id s = func_sig b = block
