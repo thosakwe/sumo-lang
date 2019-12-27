@@ -65,8 +65,8 @@ and load_ast_into_universe universe path (directives, decls) =
           else
             let (ctx_after_parse, c_unit) =
               match Utils.parse_compilation_unit relative_path with
-              | Ok result -> (context, result)
-              | Error _ ->
+              | (_, Ok result) -> (context, result)
+              | (_, Error _) ->
                 let error_msg = "Failed to parse the module at this path; it cannot be imported." in
                 let new_ctx = emit_error context span error_msg in
                 (new_ctx, ([], []))

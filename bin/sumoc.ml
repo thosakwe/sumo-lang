@@ -40,14 +40,15 @@ let () =
       ignore (exit 1)
     | _ ->
       let lexbuf = Lexing.from_channel (open_in !in_file) in
+      (* Ast.span * error_level * string *)
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = !in_file };
 
-      let c_unit = match Utils.parse_compilation_unit !in_file with
-        | Ok result -> result
-        | Error error_msg ->
-          prerr_endline error_msg;
-          ignore (exit 1);
-          ([], [])
+      let (source_text, parse_errors, c_unit) = match Utils.parse_compilation_unit !in_file with
+        | (text, Ok result) -> (text, [], result)
+        | (text, Error error_msg) ->
+          let span = (lexbuf.lex_start_p, lexbuf.lex_curr_p) in
+          let errors = [(span, Sema.Error, error_msg) ] in
+          (text, errors, ([], []))
       in
 
       (* Compile it. *)
@@ -65,13 +66,11 @@ let () =
         | self -> self
       in
 
-      let dump_error e =
-        print_endline (Sema.string_of_error e)
-      in
-      List.iter dump_error result.errors;
+      let all_errors = parse_errors @ result.errors in
+      List.iter (Utils.dump_error source_text) all_errors;
 
-      match result with
-      | { llvm_module = Some llvm_module; _ } -> begin
+      match (parse_errors, result) with
+      | ([], { llvm_module = Some llvm_module; _ }) -> begin
           let llvm_ir = Llvm.string_of_llmodule llvm_module in
           if !emit_llvm then
             let chan = open_out output_path in
