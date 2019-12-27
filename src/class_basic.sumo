@@ -1,0 +1,9 @@
+class MyClass {
+  value: int = 2
+}
+
+fn main() : int {
+  var x = MyClass()
+  x.value += 1
+  return x.value
+}
