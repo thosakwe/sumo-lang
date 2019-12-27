@@ -1,6 +1,14 @@
 open Ssa
 open Ssa_context
 
+let builtin_scope =
+  Scope.of_seq (List.to_seq [
+      ("int", TypeSymbol IntType);
+      ("double", TypeSymbol DoubleType);
+      ("bool", TypeSymbol BoolType);
+      ("void", TypeSymbol VoidType)
+    ])
+
 let rec compile_single_ast path c_unit =
   let (context, universe, _) = load_ast_into_universe (Ssa.default_universe) path c_unit in
   (* List.iter (function x -> prerr_endline (Sema.string_of_error x)) context.errors; *)
@@ -13,18 +21,12 @@ and load_ast_into_universe universe path (directives, decls) =
   (* TODO: Imports *)
 
   let default_context =
-    let root_scope = Scope.of_seq (List.to_seq [
-        ("int", TypeSymbol IntType);
-        ("double", TypeSymbol DoubleType);
-        ("bool", TypeSymbol BoolType);
-        ("void", TypeSymbol VoidType)
-      ])
-    in
     {
       block_is_dead = false;
       this_module = path;
       errors = [];
-      scope = root_scope;
+      (* scope = Scope.empty; *)
+      scope = builtin_scope;
       universe = default_universe;
       namer = Namer.empty;
     }
@@ -81,15 +83,17 @@ and load_ast_into_universe universe path (directives, decls) =
                 in
                 emit_error context span error_msg
               else
+                (* TODO: Heed hide, show *)
+                (* TODO: Warn on hide/show nonexistent symbol *)
                 let symbol = ImportedSymbol (imported_module, name) in
                 let new_scope = Scope.replace name symbol context.scope in
                 { context with scope = new_scope }
             in
 
             let ctx_before_fold =
-              {ctx_after_parse with 
-               errors = ctx_after_load.errors;
-               universe = universe_after_load;
+              { ctx_after_parse with 
+                errors = ctx_after_load.errors;
+                universe = universe_after_load;
               } 
             in
             StringMap.fold fold_symbol (!imported_module).symbols ctx_before_fold
@@ -98,6 +102,8 @@ and load_ast_into_universe universe path (directives, decls) =
     in
     List.fold_left fold_import initial_context directives
   in
+
+  (* After importing symbols, merge in builtin values. *)
 
   (* TODO: Can symbols be resolved lazily? *)
 
@@ -1123,8 +1129,14 @@ and compile_assign context = function
 and compile_type context = function
   | Ast.TypeRef (span, name) -> begin
       if not (Scope.mem name context.scope) then
-        let error_msg = Scope.does_not_exist name in
+        let error_msg = 
+          "No type named \"" ^ name ^ "\" exists in this context."
+        in
         let new_ctx = emit_error context span error_msg in
+        let ff name _ =
+          print_endline name
+        in
+        Scope.iter ff context.scope;
         (new_ctx, UnknownType)
       else
         let not_a_type sym =

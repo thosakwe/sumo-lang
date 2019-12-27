@@ -1,6 +1,6 @@
 import "import_this" hide nonexistent
 
 fn main() : int {
-  var x = do_it(4)
-  return x.value * 2
+  var x = times_two(4)
+  return x * 2
 }

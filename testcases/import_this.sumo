@@ -1,9 +1,3 @@
-type my_struct =
-  {
-    value: int
-    truthy: bool
-  }
-
-fn do_it(x: int) : my_struct {
-  return { value = x, truthy = true }
+fn times_two(x: int) : int {
+  return x * 2
 }
