@@ -7,7 +7,7 @@ type my_struct =
 fn main() : int {
   var x_opt : my_struct? = { one = 1, two = 2}
   if (var x = x_opt) {
-    return x.maybe_two + (x.one * 4)
+    return x.two + (x.one * 4)
   } else {
     return 55
   }
