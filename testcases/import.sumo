@@ -1,11 +1,6 @@
 import "import_this" hide nonexistent
 
-type has_int =
-  {
-    value: int
-  }
-
-fn main() : has_int {
+fn main() : int {
   var x = times_two(4)
-  return x * 2
+  return x.value * 2
 }

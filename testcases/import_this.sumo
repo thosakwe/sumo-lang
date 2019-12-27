@@ -1,3 +1,8 @@
-public fn times_two(x: int) : int {
-  return x * 2
+type has_int =
+  {
+    value: int
+  }
+
+public fn times_two(x: int) : has_int {
+  return { value = x * 2 }
 }
