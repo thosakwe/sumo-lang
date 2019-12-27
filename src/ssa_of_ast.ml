@@ -37,7 +37,7 @@ and load_ast_into_universe universe path (directives, decls) =
   (* Load all imported modules, and extract imported symbols.
    * We also need to warn on duplicate symbols.
    * Lastly, we'll need to merge in the symbols from the current module.
-   * If the local module overrides a symbol, issue a warning. *)
+   * TODO: If the local module overrides a symbol, issue a warning. *)
 
   (* TODO: Don't reload modules... *)
   (* TODO: Load packages_path from config, if any. *)
@@ -112,6 +112,25 @@ and load_ast_into_universe universe path (directives, decls) =
 
   (* TODO: Can symbols be resolved lazily? *)
 
+  (* Compile types first. *)
+  let (ctx_after_types, type_symbol_pairs) =
+    let (ctx_after_pairs, pairs) =
+      let fold_type_decl (context, pair_list) self =
+        match self with
+        | Ast.TypeDecl (_, vis, name, typ) -> begin
+            let (new_ctx, ssa_typ) = compile_type context typ in
+            let symbol = TypeSymbol ssa_typ in
+            let pair = (name, (vis, symbol)) in
+            let new_scope = Scope.replace name symbol context.scope in
+            ({ new_ctx with scope = new_scope }, pair_list @ [pair])
+          end
+        | _ -> (context, pair_list)
+      in
+      List.fold_left fold_type_decl (ctx_after_imports, []) decls
+    in
+    (ctx_after_pairs, pairs)
+  in
+
   let (ctx_after_symbols, symbols) =
     let (ctx_after_pairs, pairs) =
       let fold_decl (context, pair_list) self =
@@ -135,16 +154,12 @@ and load_ast_into_universe universe path (directives, decls) =
               let pair = (name, (vis, symbol)) in
               (new_ctx, pair_list @ [pair])
           end
-        | Ast.TypeDecl (_, vis, name, typ) -> begin
-            let (new_ctx, ssa_typ) = compile_type context typ in
-            let symbol = TypeSymbol ssa_typ in
-            let pair = (name, (vis, symbol)) in
-            (new_ctx, pair_list @ [pair])
-          end
+        | _ -> (context, pair_list)
       in
-      List.fold_left fold_decl (ctx_after_imports, []) decls
+      List.fold_left fold_decl (ctx_after_types, []) decls
     in
-    (ctx_after_pairs, (StringMap.of_seq (List.to_seq pairs)))
+    let combined_pairs = type_symbol_pairs @ pairs in
+    (ctx_after_pairs, (StringMap.of_seq (List.to_seq combined_pairs)))
   in
 
   (* Now that we have a new universe, compile the bodies of each function. *)
