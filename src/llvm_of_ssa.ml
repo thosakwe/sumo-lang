@@ -48,6 +48,7 @@ let rec compile_universe module_path errors universe =
             let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
             out_list @ [(name, value)]
         | ParamSymbol _ -> out_list
+        | ImportedSymbol _ -> out_list
       in
       List.fold_left llvm_of_pair [] pairs
     in

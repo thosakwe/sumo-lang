@@ -19,7 +19,7 @@ and symbol =
   | VarSymbol of bool * string * typ
   | ParamSymbol of string * int * typ
   | TypeSymbol of typ
-  (* | ImportedSymbol of (sumo_module ref) * string *)
+  | ImportedSymbol of (sumo_module ref) * string
 and instr =
   | Value of value
   | Return of typ * value
@@ -125,9 +125,9 @@ and string_of_symbol = function
   | ParamSymbol (name, index, typ) -> 
     let mut_string = string_of_int index in
     "param " ^ mut_string ^ ": " ^ name ^ ": " ^ (string_of_type typ)
-(* | ImportedSymbol (m, name) ->
+| ImportedSymbol (m, name) ->
    let {path; _} = !m in
-   path ^ "::" ^ name *)
+   path ^ "::" ^ name
 and string_of_block block =
   let indented_string_of_instr instr =
     "  " ^ (string_of_instr instr)
