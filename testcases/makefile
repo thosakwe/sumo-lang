@@ -13,7 +13,7 @@ optional_struct.exe struct_cast.exe import.exe
 %.exe: %.o
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $^ $(LDLIBS)
 
-import.exe: import.o import_this.o
+import.exe: import_this.o import.o
 
 clean:
 	rm -f *.o *.ll *.s *.exe
