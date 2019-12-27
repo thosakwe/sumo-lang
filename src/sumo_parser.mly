@@ -86,6 +86,14 @@ class_member:
       Ast.ClassField ($loc, m, n, t, v)
     }
 
+cm_mod:
+  | v = VIS { Ast.MemberVisibility ($loc, v) }
+  | FINAL { Ast.MemberFinality $loc }
+
+m_type: COLON t = typ { t }
+
+m_expr: EQUALS v = expr { v }
+
 func:
   | FN name = id s = func_sig b = block
     {

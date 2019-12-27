@@ -18,6 +18,7 @@ and class_member =
   | ClassField of span * (class_member_modifier list) * string * (typ option) * (expr option)
   | ClassFunc of span * Visibility.t * func
   | Constructor of span * string * func_signature * block
+  | Operator of span * string * func_signature * block
 and class_member_modifier =
   | MemberVisibility of span * Visibility.t
   | MemberFinality of span
