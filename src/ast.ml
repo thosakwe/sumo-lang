@@ -1,6 +1,6 @@
 module StringMap = Map.Make(String)
 
-type compilation_unit = decl list
+type compilation_unit = (directive list) * (decl list)
 and directive =
   | ImportDirective of span * string * (import_modifier option)
 and import_modifier =

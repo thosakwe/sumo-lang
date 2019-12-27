@@ -6,7 +6,7 @@ let rec compile_single_ast path c_unit =
   (* List.iter (function x -> prerr_endline (Sema.string_of_error x)) context.errors; *)
   (universe, context)
 
-and load_ast_into_universe universe path c_unit =
+and load_ast_into_universe universe path (_, decls) =
   (* Before we actually compile anything, forward-declare all functions/types
    * in the module. After this, then we can then compile the actual
    * functions, and then compile everything into LLVM. *)
@@ -63,7 +63,7 @@ and load_ast_into_universe universe path c_unit =
           end
       in
       let initial_context = { default_context with universe = universe } in
-      List.fold_left fold_decl (initial_context, []) c_unit
+      List.fold_left fold_decl (initial_context, []) decls
     in
     (ctx_after_pairs, (StringMap.of_seq (List.to_seq pairs)))
   in
@@ -106,7 +106,7 @@ and load_ast_into_universe universe path c_unit =
     | Ast.TypeDecl _ -> (context, out_list)
     (* | _ -> (context, out_list) *)
   in
-  let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) c_unit in
+  let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) decls in
   this_module := {!this_module with compiled_functions };
 
   ({ final_ctx with block_is_dead = false }, new_universe)

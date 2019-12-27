@@ -49,7 +49,7 @@ let () =
         | Sumo_parser.Error ->
           prerr_endline ("fatal error: syntax error at " ^ (Sema.string_of_position lexbuf.lex_curr_p));
           ignore (exit 1);
-          []
+          ([], [])
       in
 
       (* Compile it. *)
