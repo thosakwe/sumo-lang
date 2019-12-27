@@ -533,6 +533,9 @@ and compile_type context = function
   | StructType (fields) ->
     let struct_type = compile_struct_type context (StructType fields) in
     Llvm.pointer_type struct_type
+  (* TODO: Compile classes to structs *)
+  | Class _ ->
+    Llvm.pointer_type (Llvm.void_type context)
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
 

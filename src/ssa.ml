@@ -35,7 +35,17 @@ and typ =
   | VoidType
   | OptionalType of typ
   | StructType of typ StringMap.t
+  | Class of string * (typ option) * (typ list)
   | UnknownType
+and class_member =
+  | ClassField of string * typ * (value option)
+  | ClassFunc of class_func_type * string * ((string * typ) list) * typ * Ast.decl
+  | UnresolvedClassMember of Ast.class_member
+and class_func_type =
+  | Method
+  | Operator
+  | Getter
+  | Setter
 and value =
   | FunctionCall of typ * string * (value list)
   | IntLiteral of int
@@ -125,9 +135,9 @@ and string_of_symbol = function
   | ParamSymbol (name, index, typ) -> 
     let mut_string = string_of_int index in
     "param " ^ mut_string ^ ": " ^ name ^ ": " ^ (string_of_type typ)
-| ImportedSymbol (m, name) ->
-   let {path; _} = !m in
-   path ^ "::" ^ name
+  | ImportedSymbol (m, name) ->
+    let {path; _} = !m in
+    path ^ "::" ^ name
 and string_of_block block =
   let indented_string_of_instr instr =
     "  " ^ (string_of_instr instr)
@@ -166,6 +176,7 @@ and string_of_type = function
       else
         "{ " ^ field_str ^ " }"
     end
+  | Class _ -> "TODO: string_of_class"
 and string_of_value = function
   | IntLiteral v -> string_of_int v
   | DoubleLiteral v -> string_of_float v

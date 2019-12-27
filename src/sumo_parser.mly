@@ -58,7 +58,8 @@ import_modifier:
 decl:
   | v = vis f = func { Ast.FuncDecl ($loc, v, f) }
   | v = vis TYPE n = id EQUALS t = typ { Ast.TypeDecl ($loc, v, n, t) }
-  | a = abstract;
+  | v = vis;
+    a = abstract;
     CLASS;
     n = id;
     e = extends;
@@ -66,7 +67,7 @@ decl:
     m = list(class_member);
     RCURLY;
     {
-      Ast.ClassDecl ($loc, a, n, e, m)
+      Ast.ClassDecl ($loc, v, a, n, e, m)
     }
 
 abstract:

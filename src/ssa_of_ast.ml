@@ -115,6 +115,7 @@ and load_ast_into_universe universe path (directives, decls) =
   (* TODO: Can symbols be resolved lazily? *)
 
   (* Compile types first. *)
+  (* TODO: Handle duplicate symbols *)
   let (ctx_after_types, type_symbol_pairs) =
     let (ctx_after_pairs, pairs) =
       let fold_type_decl (context, pair_list) self =
@@ -126,6 +127,12 @@ and load_ast_into_universe universe path (directives, decls) =
             let new_scope = Scope.replace name symbol context.scope in
             ({ new_ctx with scope = new_scope }, pair_list @ [pair])
           end
+        | Ast.ClassDecl ((_, vis, _, name, _, _)) ->
+          let typ = Class (name, None, []) in
+          let symbol = TypeSymbol typ in
+          let pair = (name, (vis, symbol)) in
+          let new_scope = Scope.replace name symbol context.scope in
+          ({ context with scope = new_scope }, pair_list @ [pair])
         | _ -> (context, pair_list)
       in
       List.fold_left fold_type_decl (ctx_after_imports, []) decls
@@ -199,6 +206,7 @@ and load_ast_into_universe universe path (directives, decls) =
       end
     (* We have already compiled types. *)
     | Ast.TypeDecl _ -> (context, out_list)
+    | Ast.ClassDecl _ -> (context, out_list)
     (* | _ -> (context, out_list) *)
   in
   let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) decls in
