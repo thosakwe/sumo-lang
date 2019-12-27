@@ -709,10 +709,25 @@ and compile_expr context = function
           let error_msg = "The name \"" ^ name ^ "\" resolves to " ^ (string_of_symbol sym) ^ ", which is not a value." in
           ((emit_error context span error_msg), UnknownType, None)
         in
-        match Scope.find name context.scope with
-        | VarSymbol (_, name, typ) -> (context, typ, Some (VarGet (name, typ)))
-        | ParamSymbol (name, index, typ) -> (context, typ, Some (ParamGet (index, name, typ)))
-        | _ as sym -> not_a_value sym
+        let rec resolve_sym = function
+          | VarSymbol (_, name, typ) -> (context, typ, Some (VarGet (name, typ)))
+          | ParamSymbol (name, index, typ) -> (context, typ, Some (ParamGet (index, name, typ)))
+          | ImportedSymbol (module_ref, name) as sym -> begin
+              let (vis, symbol) = StringMap.find name (!module_ref).symbols in
+              match vis with
+              | Visibility.Public -> resolve_sym symbol
+              | _ -> 
+                let error_msg =
+                  "You do not have access to the symbol " 
+                  ^ (string_of_symbol sym)
+                  ^ " in this context."
+                in
+                ((emit_error context span error_msg), UnknownType, None)
+            end
+          | _ as sym -> not_a_value sym
+        in
+
+        resolve_sym (Scope.find name context.scope)
     end
   | Ast.Assign (span, target, op, value) -> compile_assign context (span, target, op, value)
   (* If we find a call, there's quite a bit we have to do properly resolve it. *)
@@ -734,54 +749,71 @@ and compile_expr context = function
             let new_ctx = emit_error context span error_msg in
             (new_ctx, UnknownType, None)
           else
-            match Scope.find name context.scope with
-            (* If we find a function, then verify the number of args. *)
-            | FuncSymbol (_, func_name, params, returns, _) -> begin
-                if (List.length args) != (List.length params) then 
-                  let error_msg =
-                    "The function \"" ^ func_name ^ "\" expects "
-                    ^ (string_of_int (List.length params))
-                    ^ " argument(s), but "
-                    ^ (string_of_int (List.length args))
-                    ^ " argument(s) were provided instead."
-                  in
-                  ((emit_error context span error_msg), UnknownType, None)
-                else
-                  (* If we have the correct number of args, then perform type-checking. *)
-                  let params_to_args = List.combine params args in
-                  let check_one_pair (context, out_list, success) ((name, param_type), arg) =
-                    (* The type-check only fails if we reach a cast failure. *)
-                    let (new_ctx, typ, value_opt) = compile_expr context arg in
-                    let cast_failure = 
-                      let error_msg =
-                        "Cannot cast argument of type " ^ (string_of_type typ)
-                        ^ " to type " ^ (string_of_type param_type)
-                        ^ " for argument \"" ^ name
-                        ^ "\"."
-                      in
-                      ((emit_error new_ctx span error_msg), out_list, false)
+            let rec resolve_sym = function
+              (* If we find a function, then verify the number of args. *)
+              | FuncSymbol (_, func_name, params, returns, _) -> begin
+                  if (List.length args) != (List.length params) then 
+                    let error_msg =
+                      "The function \"" ^ func_name ^ "\" expects "
+                      ^ (string_of_int (List.length params))
+                      ^ " argument(s), but "
+                      ^ (string_of_int (List.length args))
+                      ^ " argument(s) were provided instead."
                     in
-                    match cast_value context span value_opt typ param_type with
-                    | (out_ctx, Error _) ->
-                      (out_ctx, out_list, false)
-                    | (out_ctx, Ok coerced_value_opt) ->
-                      match coerced_value_opt with
-                      | None -> cast_failure
-                      | Some value -> (out_ctx, (out_list @ [value]), success)
-                  in
-                  let (new_ctx, compiled_args, success) =
-                    List.fold_left check_one_pair (context, [], true) params_to_args
-                  in
-                  if not success then
-                    (new_ctx, UnknownType, None)
+                    ((emit_error context span error_msg), UnknownType, None)
                   else
-                    (* Everything is okay, emit the call. *)
-                    let value = FunctionCall (returns, func_name, compiled_args) in
-                    ({ new_ctx with block_is_dead = context.block_is_dead }, returns, Some value)
-              end
-            | _ as sym ->  
-              let error_msg = "The name \"" ^ name ^ "\" resolves to " ^ (string_of_symbol sym) ^ ", which is not a value." in
-              ((emit_error context span error_msg), UnknownType, None)
+                    (* If we have the correct number of args, then perform type-checking. *)
+                    let params_to_args = List.combine params args in
+                    let check_one_pair (context, out_list, success) ((name, param_type), arg) =
+                      (* The type-check only fails if we reach a cast failure. *)
+                      let (new_ctx, typ, value_opt) = compile_expr context arg in
+                      let cast_failure = 
+                        let error_msg =
+                          "Cannot cast argument of type " ^ (string_of_type typ)
+                          ^ " to type " ^ (string_of_type param_type)
+                          ^ " for argument \"" ^ name
+                          ^ "\"."
+                        in
+                        ((emit_error new_ctx span error_msg), out_list, false)
+                      in
+                      match cast_value context span value_opt typ param_type with
+                      | (out_ctx, Error _) ->
+                        (out_ctx, out_list, false)
+                      | (out_ctx, Ok coerced_value_opt) ->
+                        match coerced_value_opt with
+                        | None -> cast_failure
+                        | Some value -> (out_ctx, (out_list @ [value]), success)
+                    in
+                    let (new_ctx, compiled_args, success) =
+                      List.fold_left check_one_pair (context, [], true) params_to_args
+                    in
+                    if not success then
+                      (new_ctx, UnknownType, None)
+                    else
+                      (* Everything is okay, emit the call. *)
+                      let value = FunctionCall (returns, func_name, compiled_args) in
+                      ({ new_ctx with block_is_dead = context.block_is_dead }, returns, Some value)
+                end
+              | ImportedSymbol (module_ref, name) as sym -> begin
+                  let (vis, symbol) = StringMap.find name (!module_ref).symbols in
+                  match vis with
+                  | Visibility.Public -> resolve_sym symbol
+                  | _ -> 
+                    let error_msg =
+                      "You do not have access to call the symbol " 
+                      ^ (string_of_symbol sym)
+                      ^ " in this context."
+                    in
+                    ((emit_error context span error_msg), UnknownType, None)
+                end
+              | _ as sym ->  
+                let error_msg =
+                  "The name \"" ^ name ^ "\" resolves to "
+                  ^ (string_of_symbol sym) ^ ", which is not a callable value."
+                in
+                ((emit_error context span error_msg), UnknownType, None)
+            in
+            resolve_sym (Scope.find name context.scope)
         end
       | _ ->
         let error_msg = "Only top-level symbols may be called as functions." in
