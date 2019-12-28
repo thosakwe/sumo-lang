@@ -196,6 +196,72 @@ let rec compile_expr context = function
       (* If we get instance.x(...), we want to compile it into a FuncSymbol, and then
        * pass that back into invoke_symbol.
        * Ultimately, we have to also pass in a pointer to the class as the first argument. *)
+      | Ast.GetField (span, lhs, member_name) -> begin
+          (* Ensure that lhs is an instance of some class. If so, try to find a corresponding
+           * method, with the correct access for this context. If all is well, fabricate a
+           * FuncSymbol, and pass that back into invoke_symbol. *)
+          let (_, lhs_type, _) = compile_expr context lhs in
+          let ctx_after_lhs = context in
+          match lhs_type with
+          (* TODO: Search for matching method in parent classes.
+           * TODO: Emit method calls as v-table lookups. *)
+          | Class (_, class_name, _, _, members) as clazz -> begin
+              match StringMap.find_opt member_name members with
+              | None -> 
+                let error_msg = 
+                  "The class \"" ^ class_name ^ "\" has no method named \""
+                  ^ member_name ^ "\"."
+                in
+                let new_ctx = emit_error ctx_after_lhs span error_msg in
+                (new_ctx, UnknownType, None)
+              | Some (vis, ClassFunc (_, func_name, params, returns, _)) -> begin 
+                  (* Check if we have access to the class. *)
+                  (* TODO: Unify this logic *)
+                  let (can_access, access_error_msg) = match vis with
+                    | Visibility.Public  -> (true, "")
+                    | Visibility.Protected
+                    | Visibility.Private -> begin
+                        let error_msg =
+                          "Cannot access " ^ (Visibility.string_of_visibility vis)
+                          ^ " symbol \"" ^ member_name ^ "\" of class \""
+                          ^ class_name ^ "\" from this context."
+                        in
+
+                        match ctx_after_lhs.current_class with
+                        | None -> (false, error_msg)
+                        | Some parent_type -> begin
+                            if not (class_extends parent_type clazz) then
+                              (false, error_msg)
+                            else
+                              (true, "")
+                          end
+                      end
+                  in
+
+                  if not can_access then
+                    let new_ctx = emit_error ctx_after_lhs span access_error_msg in
+                    (new_ctx, UnknownType, None)
+                  else begin
+                    (* Create the new func symbol. *)
+                    let new_params = [("this", clazz)] @ params in
+                    let new_symbol = FuncSymbol (false, func_name, new_params, returns, Ast.DummyDecl) in
+                    let (new_ctx, out_type, value_opt) = invoke_symbol [lhs] new_symbol in
+                    (new_ctx, out_type, value_opt)
+                  end
+                end
+              | _ -> 
+                let error_msg = 
+                  "The class \"" ^ class_name ^ "\" has a member named \""
+                  ^ member_name ^ "\", but it is not a method."
+                in
+                let new_ctx = emit_error context span error_msg in
+                (new_ctx, UnknownType, None)
+            end
+          | _ ->
+            let error_msg = "Only the fields of classes may be invoked as methods." in
+            let new_ctx = emit_error context span error_msg in
+            (new_ctx, UnknownType, None)
+        end
       | _ ->
         let error_msg = "Only top-level symbols and class members may be called as functions." in
         let new_ctx = emit_error context span error_msg in

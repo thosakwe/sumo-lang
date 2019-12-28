@@ -298,6 +298,7 @@ and load_ast_into_universe universe path (directives, decls) =
     (* We have already compiled types. *)
     | Ast.TypeDecl _ -> (context, out_list)
     | Ast.ClassDecl _ -> (context, out_list)
+    | Ast.DummyDecl -> (context, out_list)
     (* | _ -> (context, out_list) *)
   in
   let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) decls in

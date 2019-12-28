@@ -10,6 +10,7 @@ and decl =
   | FuncDecl of span * Visibility.t * func
   | TypeDecl of span * Visibility.t * string * typ
   | ClassDecl of class_decl
+  | DummyDecl
 and func =
   | ConcreteFunc of func_body
   | ExternalFunc of span * (string option) * string * func_signature
