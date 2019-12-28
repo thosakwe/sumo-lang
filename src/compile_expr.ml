@@ -81,6 +81,105 @@ let rec compile_expr context = function
        * 4. TODO: Invoke closures.
       *)
 
+      let rec invoke_symbol prelude_args = function
+        (* If we find a function, then verify the number of args. *)
+        | FuncSymbol (_, func_name, params, returns, _) -> begin
+            if (List.length args) != (List.length params) then 
+              let error_msg =
+                "The function \"" ^ func_name ^ "\" expects "
+                ^ (string_of_int (List.length params))
+                ^ " argument(s), but "
+                ^ (string_of_int (List.length args))
+                ^ " argument(s) were provided instead."
+              in
+              ((emit_error context span error_msg), UnknownType, None)
+            else
+              (* If we have the correct number of args, then perform type-checking. *)
+              let params_to_args = List.combine params (prelude_args @ args) in
+              let check_one_pair (context, out_list, success) ((name, param_type), arg) =
+                (* The type-check only fails if we reach a cast failure. *)
+                let (new_ctx, typ, value_opt) = compile_expr context arg in
+                let cast_failure = 
+                  let error_msg =
+                    "Cannot cast argument of type " ^ (string_of_type typ)
+                    ^ " to type " ^ (string_of_type param_type)
+                    ^ " for argument \"" ^ name
+                    ^ "\"."
+                  in
+                  ((emit_error new_ctx span error_msg), out_list, false)
+                in
+                match cast_value context span value_opt typ param_type with
+                | (out_ctx, Error _) ->
+                  (out_ctx, out_list, false)
+                | (out_ctx, Ok coerced_value_opt) ->
+                  match coerced_value_opt with
+                  | None -> cast_failure
+                  | Some value -> (out_ctx, (out_list @ [value]), success)
+              in
+              let (new_ctx, compiled_args, success) =
+                List.fold_left check_one_pair (context, [], true) params_to_args
+              in
+              if not success then
+                (new_ctx, UnknownType, None)
+              else
+                (* Everything is okay, emit the call. *)
+                let value = FunctionCall (returns, func_name, compiled_args) in
+                ({ new_ctx with block_is_dead = context.block_is_dead }, returns, Some value)
+          end
+        | ImportedSymbol (module_ref, name) as sym -> begin
+            let (vis, symbol) = StringMap.find name (!module_ref).symbols in
+            match vis with
+            | Visibility.Public -> invoke_symbol [] symbol
+            | _ -> 
+              let error_msg =
+                "You do not have access to call the symbol " 
+                ^ (string_of_symbol sym)
+                ^ " in this context."
+              in
+              ((emit_error context span error_msg), UnknownType, None)
+          end
+        (* If we find a class, invoke its constructor. *)
+        | TypeSymbol ((Class (_, class_name, _, _, members) as clazz)) -> begin
+            (* If there is no constructor, then the arg list must be empty. *)
+            (* TODO: Also include fields from parent classes *)
+            let constructor = None in
+            match constructor with
+            | None -> begin
+                match args with
+                | [_] | _ :: _ ->
+                  let error_msg = 
+                    "The class \"" ^ class_name ^ "\" has no defined constructor, so no arguments"
+                    ^ " may be passed to its instantiation."
+                  in
+                  ((emit_error context span error_msg), UnknownType, None)
+                (* Since we are not calling the constructor, simply create the struct instance.
+                 * Find any field with a default value, and pass its value in.
+                 * Prior static analysis will ensure that if there is no constructor, all
+                 * fields have a default value. *)
+                | _ -> 
+                  let fold_field name (_, member) value_map = match member with
+                    | ClassField (_, _, _, _, value_opt) -> begin 
+                        match value_opt with 
+                        | None -> value_map
+                        | Some value -> StringMap.add name value value_map
+                      end
+                    | _ -> value_map
+                  in
+                  let value_map = StringMap.fold fold_field members StringMap.empty in
+                  let value = StructLiteral (clazz, value_map) in
+                  (context, clazz, Some value) 
+              end
+            | Some _ -> 
+              let error_msg = "TODO: Implement constructor calling" in
+              ((emit_error context span error_msg), UnknownType, None)
+          end
+        | _ as sym ->  
+          let error_msg =
+            "The symbol \"" ^ (string_of_symbol sym) ^ "\" is not a callable value."
+          in
+          ((emit_error context span error_msg), UnknownType, None)
+      in
+
       (* It's important to note, though, that at this time, we don't have closures,
        * so the only expressions that can actually be called are identifiers. *)
       match Ast.innermost_expr target with
@@ -92,109 +191,13 @@ let rec compile_expr context = function
             let new_ctx = emit_error context span error_msg in
             (new_ctx, UnknownType, None)
           else
-            let rec resolve_sym = function
-              (* If we find a function, then verify the number of args. *)
-              | FuncSymbol (_, func_name, params, returns, _) -> begin
-                  if (List.length args) != (List.length params) then 
-                    let error_msg =
-                      "The function \"" ^ func_name ^ "\" expects "
-                      ^ (string_of_int (List.length params))
-                      ^ " argument(s), but "
-                      ^ (string_of_int (List.length args))
-                      ^ " argument(s) were provided instead."
-                    in
-                    ((emit_error context span error_msg), UnknownType, None)
-                  else
-                    (* If we have the correct number of args, then perform type-checking. *)
-                    let params_to_args = List.combine params args in
-                    let check_one_pair (context, out_list, success) ((name, param_type), arg) =
-                      (* The type-check only fails if we reach a cast failure. *)
-                      let (new_ctx, typ, value_opt) = compile_expr context arg in
-                      let cast_failure = 
-                        let error_msg =
-                          "Cannot cast argument of type " ^ (string_of_type typ)
-                          ^ " to type " ^ (string_of_type param_type)
-                          ^ " for argument \"" ^ name
-                          ^ "\"."
-                        in
-                        ((emit_error new_ctx span error_msg), out_list, false)
-                      in
-                      match cast_value context span value_opt typ param_type with
-                      | (out_ctx, Error _) ->
-                        (out_ctx, out_list, false)
-                      | (out_ctx, Ok coerced_value_opt) ->
-                        match coerced_value_opt with
-                        | None -> cast_failure
-                        | Some value -> (out_ctx, (out_list @ [value]), success)
-                    in
-                    let (new_ctx, compiled_args, success) =
-                      List.fold_left check_one_pair (context, [], true) params_to_args
-                    in
-                    if not success then
-                      (new_ctx, UnknownType, None)
-                    else
-                      (* Everything is okay, emit the call. *)
-                      let value = FunctionCall (returns, func_name, compiled_args) in
-                      ({ new_ctx with block_is_dead = context.block_is_dead }, returns, Some value)
-                end
-              | ImportedSymbol (module_ref, name) as sym -> begin
-                  let (vis, symbol) = StringMap.find name (!module_ref).symbols in
-                  match vis with
-                  | Visibility.Public -> resolve_sym symbol
-                  | _ -> 
-                    let error_msg =
-                      "You do not have access to call the symbol " 
-                      ^ (string_of_symbol sym)
-                      ^ " in this context."
-                    in
-                    ((emit_error context span error_msg), UnknownType, None)
-                end
-              (* If we find a class, invoke its constructor. *)
-              | TypeSymbol ((Class (_, class_name, _, _, members) as clazz)) -> begin
-                  (* If there is no constructor, then the arg list must be empty. *)
-                  (* TODO: Also include fields from parent classes *)
-                  let constructor = None in
-                  match constructor with
-                  | None -> begin
-                      match args with
-                      | [_] | _ :: _ ->
-                        let error_msg = 
-                          "The class \"" ^ class_name ^ "\" has no defined constructor, so no arguments"
-                          ^ " may be passed to its instantiation."
-                        in
-                        ((emit_error context span error_msg), UnknownType, None)
-                      (* Since we are not calling the constructor, simply create the struct instance.
-                       * Find any field with a default value, and pass its value in.
-                       * Prior static analysis will ensure that if there is no constructor, all
-                       * fields have a default value. *)
-                      | _ -> 
-                        let fold_field name (_, member) value_map = match member with
-                          | ClassField (_, _, _, _, value_opt) -> begin 
-                              match value_opt with 
-                              | None -> value_map
-                              | Some value -> StringMap.add name value value_map
-                            end
-                          | _ -> value_map
-                        in
-                        let value_map = StringMap.fold fold_field members StringMap.empty in
-                        let value = StructLiteral (clazz, value_map) in
-                        (context, clazz, Some value) 
-                    end
-                  | Some _ -> 
-                    let error_msg = "TODO: Implement constructor calling" in
-                    ((emit_error context span error_msg), UnknownType, None)
-                end
-              | _ as sym ->  
-                let error_msg =
-                  "The name \"" ^ name ^ "\" resolves to "
-                  ^ (string_of_symbol sym) ^ ", which is not a callable value."
-                in
-                ((emit_error context span error_msg), UnknownType, None)
-            in
-            resolve_sym (Scope.find name context.scope)
+            invoke_symbol [] (Scope.find name context.scope)
         end
+      (* If we get instance.x(...), we want to compile it into a FuncSymbol, and then
+       * pass that back into invoke_symbol.
+       * Ultimately, we have to also pass in a pointer to the class as the first argument. *)
       | _ ->
-        let error_msg = "Only top-level symbols may be called as functions." in
+        let error_msg = "Only top-level symbols and class members may be called as functions." in
         let new_ctx = emit_error context span error_msg in
         (new_ctx, UnknownType, None)
     end
