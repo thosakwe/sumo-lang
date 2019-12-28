@@ -29,27 +29,51 @@ let rec compile_universe module_path errors universe =
     let list_of_modules = List.of_seq (StringMap.to_seq universe.modules) in
     let list_of_symbols (path, m_ref) =
       let pairs = List.of_seq (StringMap.to_seq (!m_ref).symbols) in
-      let llvm_of_pair out_list (name, (_, sym)) =
+      let llvm_of_pair out_list ((name:string), (_, sym)) =
+        (* If this is the module we are compiling, then don't forward-declare anything
+             * because names can only be defined once. Otherwise you get main.1, foo.1, etc.
+             *
+             * TODO: Prevent duplicates
+             *
+             * The only exception is "external" functions. *)
+        let forward_decl out_list ext params returns llvm_name =
+          (* if (module_path == path) && (not ext) then begin *)
+          if false then begin
+            let _ = path, ext in
+            (* print_endline module_path;
+            print_endline path;
+            print_endline (string_of_bool ext); *)
+            out_list
+          end
+          else
+            let llvm_function_type = compile_function_signature llvm_context params returns in
+            let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
+            out_list @ [(name, value)]
+        in
+
         match sym with
-        | TypeSymbol _ -> out_list
         | VarSymbol (_, qualified_name, typ) ->
           let llvm_type = compile_type llvm_context typ in
           let value = Llvm.declare_global llvm_type qualified_name llvm_module in
           out_list @ [(name, value)]
         | FuncSymbol (ext, llvm_name, params, returns, _) ->
-          (* If this is the module we are compiling, then don't forward-declare anything
-           * because names can only be defined once. Otherwise you get main.1, foo.1, etc.
-           *
-           * The only exception is "external" functions. *)
-          if (module_path == path) && (not ext) then
-            out_list
-          else
-
-            let llvm_function_type = compile_function_signature llvm_context params returns in
-            let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
-            out_list @ [(name, value)]
+          forward_decl out_list ext params returns llvm_name
         | ParamSymbol _ -> out_list
         | ImportedSymbol _ -> out_list
+        | TypeSymbol t -> begin 
+            (* If we get a class, also forward declare its functions. *)
+            match t with
+            | Class (_, _, _, _, members) -> begin
+                let fold_member _ (_, member) out_list = 
+                  match member with
+                  | ClassFunc (_, llvm_name, params, returns, _) ->
+                    forward_decl out_list false params returns llvm_name
+                  | _ -> out_list
+                in
+                StringMap.fold fold_member members out_list
+              end
+            | _ -> out_list 
+          end
       in
       List.fold_left llvm_of_pair [] pairs
     in
@@ -427,10 +451,6 @@ and compile_value context span value =
       | None ->
         let error_msg = "LLVM compiler error: " ^ (Scope.does_not_exist name) in
         let new_ctx = emit_error context span error_msg in
-        let dump_pair name _ =
-          print_endline name
-        in
-        Scope.iter dump_pair context.scope;
         (new_ctx, Llvm.const_null (Llvm.i64_type context.llvm_context))
       | Some target ->
         let (new_ctx, llvm_args) =
