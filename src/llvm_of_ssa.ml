@@ -1,5 +1,12 @@
 open Ssa
 
+module Int = struct
+  type t = int
+  let compare a b = a - b
+end
+
+module IntMap = Map.Make(Int)
+
 type context =
   {
     errors: Sema.error list;
@@ -37,20 +44,21 @@ let rec compile_universe module_path errors universe =
              *
              * The only exception is "external" functions. *)
         let forward_decl out_list ext params returns llvm_name prelude_params =
+          let _ = path, out_list, ext in
           (* if (module_path == path) && (not ext) then begin *)
-          if false then begin
-            let _ = path, ext in
-            (* print_endline module_path;
+          (* if false then begin
+             let _ = path, ext in
+             (* print_endline module_path;
                print_endline path;
                print_endline (string_of_bool ext); *)
-            out_list
-          end
-          else
-            let llvm_function_type =
-              compile_function_signature llvm_context params returns prelude_params
-            in
-            let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
-            out_list @ [(name, value)]
+             out_list
+             end
+             else *)
+          let llvm_function_type =
+            compile_function_signature llvm_context params returns prelude_params
+          in
+          let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
+          (name, value)
         in
 
         match sym with
@@ -59,22 +67,35 @@ let rec compile_universe module_path errors universe =
           let value = Llvm.declare_global llvm_type qualified_name llvm_module in
           out_list @ [(name, value)]
         | FuncSymbol (ext, llvm_name, params, returns, _) ->
-          forward_decl out_list ext params returns llvm_name []
+          let pair = forward_decl out_list ext params returns llvm_name [] in
+          out_list @ [pair]
         | ParamSymbol _ -> out_list
         | ImportedSymbol _ -> out_list
         | TypeSymbol t -> begin 
-            (* If we get a class, also forward declare its functions. *)
+            (* If we get a class, also forward declare its functions.
+             * In addition, declare its vtable as a constant. 
+             * Vtable items must be in order, but vtable_indices is a string->int map.
+             * We can reverse the map, and then fold them into a list of pointers. *)
             match t with
-            | Class (_, _, _, _, members, _) -> begin
-                let fold_member _ (_, member) out_list = 
+            | Class (_, _, _, _, members, vtable_indices) -> begin
+                let fold_member member_name (_, member) (pair_list, pointer_map) = 
                   match member with
                   | ClassFunc (_, llvm_name, params, returns, _) ->
                     let this_type = compile_type llvm_context t in
                     let prelude_params = [this_type] in
-                    forward_decl out_list false params returns llvm_name prelude_params
-                  | _ -> out_list
+                    let (pair_name, llvm_value) = forward_decl pair_list false params returns llvm_name prelude_params in
+                    let index = StringMap.find member_name vtable_indices in
+                    let new_pointer_map = IntMap.add index llvm_value pointer_map in
+                    ((pair_list @ [(pair_name, llvm_value)]), new_pointer_map)
+                  | _ -> (pair_list, pointer_map)
                 in
-                StringMap.fold fold_member members out_list
+                let (pairs_after_members, pointer_map) =
+                  StringMap.fold fold_member members (out_list, IntMap.empty) 
+                in
+
+                let _ = pointer_map in
+
+                pairs_after_members
               end
             | _ -> out_list 
           end
@@ -559,16 +580,31 @@ and compile_value context span value =
 
       (* Before inserting the object's fields, insert the RTTI hash, followed by the
        * pointer to the vtable. *)
-      begin
-        match struct_type with
-        | Class (_, class_name, _, _, _, _) -> 
-          let i64_type = Llvm.i64_type context.llvm_context in
-          let rtti_hash = Utils.djb2 class_name in
-          let llvm_hash = Llvm.const_int i64_type rtti_hash in
-          emit_field "@rtti_hash" llvm_hash context 0;
-          ()
-        | _ -> ()
-      end;
+      let ctx_after_rtti =
+        begin
+          match struct_type with
+          | Class (_, class_name, _, _, _, _) -> 
+            let vtable_name = (vtable_name class_name) in
+            if not (Scope.mem vtable_name context.scope) then
+              let error_msg = 
+                "LLVM compiler error: No v-table symbol exists"
+                ^ " for class \"" ^ class_name ^ "\"."
+              in
+              let new_ctx = emit_error context span error_msg in
+              new_ctx
+            else
+              let i64_type = Llvm.i64_type context.llvm_context in
+              let rtti_hash = Utils.djb2 class_name in
+              let llvm_hash = Llvm.const_int i64_type rtti_hash in
+              emit_field "@rtti_hash" llvm_hash context 0;
+
+              let vtable = Scope.find vtable_name context.scope in
+              let vtable_ptr = vtable in
+              emit_field "@vtable" vtable_ptr context 1;
+              context
+          | _ -> context
+        end
+      in
 
       let fold_field name value (context, index) =
         let (new_ctx, llvm_value) = compile_value context span value in
@@ -579,7 +615,7 @@ and compile_value context span value =
         | Class _ -> 2
         | _ -> 0
       in
-      let (new_ctx, _) = StringMap.fold fold_field fields (context, initial_index) in
+      let (new_ctx, _) = StringMap.fold fold_field fields (ctx_after_rtti, initial_index) in
       (new_ctx, struct_pointer)
     end
   | (GetElement (_, lhs, index) as instr)
@@ -676,3 +712,6 @@ and compile_struct_type context = function
 and emit_error context span error_msg =
   let error = (span, Sema.Error, error_msg) in
   {context with errors = context.errors @ [error]}
+
+and vtable_name class_name =
+  class_name ^ "@vtable"
