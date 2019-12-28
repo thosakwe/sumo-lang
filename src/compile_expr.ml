@@ -9,7 +9,7 @@ let rec compile_expr context = function
   | Ast.DoubleLiteral (_, v) -> (context, DoubleType, Some (DoubleLiteral v))
   | Ast.BoolLiteral (_, v) -> (context, BoolType, Some (BoolLiteral v))
   | Ast.Paren (_, inner) -> compile_expr context inner
-  | Ast.NoneLiteral -> (context, UnknownType, Some (OptionalNone UnknownType))
+  | Ast.NoneLiteral _ -> (context, UnknownType, Some (OptionalNone UnknownType))
   | Ast.StructLiteral (span, fields) -> begin
       (* Warn on duplicates *)
       let fold_field (context, value_pairs, type_pairs) (span, name, value_ast) =

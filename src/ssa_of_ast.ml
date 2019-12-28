@@ -185,7 +185,8 @@ and load_ast_into_universe universe path (directives, decls) =
                             | None -> (ctx_after_value, value_type, compiled_value_opt)
                             | Some typ_ast -> begin
                                 let (ctx_after_type, compiled_type) = compile_type ctx_after_value typ_ast in
-                                match cast_value ctx_after_type span compiled_value_opt value_type compiled_type with
+                                let value_span = Ast.span_of_expr value in
+                                match cast_value ctx_after_type value_span compiled_value_opt value_type compiled_type with
                                 | (ctx_after_cast, Error _) ->
                                   (ctx_after_cast, compiled_type, None)
                                 | (ctx_after_cast, Ok coerced_value_opt) ->

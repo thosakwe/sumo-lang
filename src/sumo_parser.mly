@@ -206,7 +206,7 @@ expr:
   | v = DOUBLE { Ast.DoubleLiteral ($loc, v) }
   | v = BOOL { Ast.BoolLiteral ($loc, v) }
   | v = id { Ast.Ref ($loc, v) }
-  | NONE { Ast.NoneLiteral }
+  | NONE { Ast.NoneLiteral $loc }
   | LPAREN v = expr RPAREN { Ast.Paren ($loc, v) }
   | LCURLY f = separated_list(option(COMMA), struct_value_field) RCURLY { Ast.StructLiteral ($loc, f) }
   | v = expr INCR { Ast.Unary ($loc, v, Ast.PostfixIncrement) }

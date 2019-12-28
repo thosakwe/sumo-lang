@@ -1,5 +1,5 @@
 class MyClass {
-  value: int = 2
+  value: int = true
 }
 
 fn main() : int {

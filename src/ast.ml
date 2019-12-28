@@ -58,7 +58,7 @@ and expr =
   | Assign of span * assign_target * assign_op * expr
   | Binary of span * expr * binary_op * expr
   | Unary of span * expr * unary_op
-  | NoneLiteral
+  | NoneLiteral of span
   | StructLiteral of span * ((span * string * expr) list)
   | GetField of span * expr * string
   (* TODO: Postfix, prefix increment *)
@@ -165,3 +165,18 @@ let block_of_stmt = function
   | While (span, _, _) as self -> (span, [self])
   | DoWhile (span, _, _) as self -> (span, [self])
   | ForLoop (span, _, _, _, _) as self -> (span, [self])
+
+let span_of_expr = function
+  | Ref (span, _)
+  | IntLiteral (span, _) 
+  | DoubleLiteral (span, _) 
+  | BoolLiteral (span, _) 
+  | Paren (span, _) 
+  | Call (span, _, _)
+  | Assign (span, _, _, _) 
+  | Binary (span, _, _, _) 
+  | Unary (span, _, _) 
+  | NoneLiteral span
+  | StructLiteral (span, _)
+  | GetField (span, _, _)
+    -> span
