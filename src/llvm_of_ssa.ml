@@ -41,8 +41,8 @@ let rec compile_universe module_path errors universe =
           if false then begin
             let _ = path, ext in
             (* print_endline module_path;
-            print_endline path;
-            print_endline (string_of_bool ext); *)
+               print_endline path;
+               print_endline (string_of_bool ext); *)
             out_list
           end
           else
@@ -577,7 +577,14 @@ and compile_struct_type context = function
         (* type_list *)
         | _ -> type_list
       in
-      let llvm_fields = StringMap.fold fold_member members [] in
+      (* Class instances carry a u64 rtti hash, and a pointer to a vtable. *)
+      let global_fields = 
+        [
+          Llvm.i64_type context;
+          Llvm.pointer_type (Llvm.pointer_type (Llvm.void_type context));
+        ]
+      in
+      let llvm_fields = StringMap.fold fold_member members global_fields in
       Llvm.struct_type context (Array.of_list llvm_fields)
     end
   (* Note: This case should never be reached. *)

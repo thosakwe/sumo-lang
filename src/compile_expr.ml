@@ -168,6 +168,7 @@ let rec compile_expr context = function
                       end
                     | _ -> value_map
                   in
+                  (* TODO: Pass rtti hash and vtable, make separate ClassLiteral *)
                   let value_map = StringMap.fold fold_field members StringMap.empty in
                   let value = StructLiteral (clazz, value_map) in
                   (context, clazz, Some value) 
@@ -522,7 +523,7 @@ let rec compile_expr context = function
                       | _ -> (context, out_typ, out_index, current_index + 1)
                     end
               in
-              let initial_data = (ctx_after_expr, UnknownType, -1, 0) in
+              let initial_data = (ctx_after_expr, UnknownType, -1, 2) in
               let (ctx_after_find, field_type, field_index, _) =
                 StringMap.fold find_field members initial_data
               in

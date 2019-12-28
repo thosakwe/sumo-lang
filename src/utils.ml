@@ -1,3 +1,24 @@
+(** Dan Bernstein's string hash, used to compute RTTI hashes from qualified names. *)
+let djb2 str =
+  (* https://stackoverflow.com/a/7666577/5673558
+   * unsigned long hash(unsigned char *str)
+     {
+     unsigned long hash = 5381;
+     int c;
+
+     while (c = *str++)
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+     return hash;
+     } *)
+
+  let chars = List.of_seq (String.to_seq str) in
+  let fold_char hash c =
+    ((hash lsl 5) + hash) + c 
+  in
+
+  List.fold_left fold_char 5381 (List.map int_of_char chars)
+
 let string_of_file filename =
   let rec next_line chan =
     try
