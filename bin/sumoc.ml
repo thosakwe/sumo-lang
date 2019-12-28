@@ -41,6 +41,7 @@ let () =
     | _ ->
       let lexbuf = Lexing.from_channel (open_in !in_file) in
       (* Ast.span * error_level * string *)
+      lexbuf.lex_start_p <- { lexbuf.lex_start_p with pos_fname = !in_file };
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = !in_file };
 
       let (source_text, parse_errors, c_unit) = match Utils.parse_compilation_unit !in_file with

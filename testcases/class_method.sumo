@@ -1,0 +1,10 @@
+class MyClass {
+  public fn compute() : int {
+    return 1
+  }
+}
+
+fn main() : int {
+  var x = MyClass()
+  return x.compute() + 3
+}

@@ -79,6 +79,7 @@ extends:
   | COLON v = separated_list(COMMA, typ) { v }
 
 class_member:
+  | v = vis f = func { Ast.ClassFunc ($loc, v, f) }
   | m = list(cm_mod)
     n = id
     t = option(m_type)
