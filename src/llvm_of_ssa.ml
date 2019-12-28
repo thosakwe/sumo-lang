@@ -473,14 +473,15 @@ and compile_value context span value =
         in
         (new_ctx, Llvm.build_call target (Array.of_list llvm_args) return_name new_ctx.builder)
     end
-  | VtableCall (_, _, index, args) -> begin
+  | VtableCall (returns, _, index, args) -> begin
       (* let struct_type = compile_struct_type context.llvm_context clazz in *)
       (* Yes, this is bad style. No, I do not care (yet!). *)
       let lhs = List.hd args in
       let (ctx_after_lhs, llvm_lhs) = compile_value context span lhs in
-      let vtable_ptr = Llvm.build_struct_gep llvm_lhs index "vtable_call" ctx_after_lhs.builder in
+      let vtable_ptr = Llvm.build_struct_gep llvm_lhs 1 "load_vtable_ptr" ctx_after_lhs.builder in
       let vtable = Llvm.build_load vtable_ptr "load_vtable" ctx_after_lhs.builder in
-      let func_ptr = Llvm.build_extractvalue vtable index "vtable_lookup" ctx_after_lhs.builder in
+
+      (* Compile the arguments. *)
       let (ctx_after_args, llvm_args) =
         let compile_arg (context, out_list) arg =
           let (new_ctx, value) = compile_value context span arg in
@@ -488,7 +489,29 @@ and compile_value context span value =
         in
         List.fold_left compile_arg (ctx_after_lhs, []) args
       in
-      (ctx_after_args, Llvm.build_call func_ptr (Array.of_list llvm_args) "vtable_call" ctx_after_args.builder)
+
+      (* We need to cast the vtable function pointer into the appropriate kind of
+       * function pointer. This can be done by building an llvm_function_type, and then
+       * casting to a pointer of said type. *)
+      let raw_func_ptr = 
+        let i64_type = Llvm.i64_type ctx_after_args.llvm_context in
+        let llvm_index = Llvm.const_int i64_type index in
+        Llvm.build_gep vtable [| llvm_index |] "raw_vtable_func_ptr" ctx_after_args.builder 
+      in
+
+      let llvm_returns = compile_type ctx_after_args.llvm_context returns in
+      let llvm_params = Array.of_list (List.map Llvm.type_of llvm_args) in
+      let desired_function_type = Llvm.function_type llvm_returns llvm_params in
+      let func_ptr_type = Llvm.pointer_type desired_function_type in
+      let coerced_func_ptr = 
+        let call_name = "coerced_vtable_func_ptr" in
+        Llvm.build_pointercast raw_func_ptr func_ptr_type call_name ctx_after_args.builder
+      in
+
+      let result = 
+        Llvm.build_call coerced_func_ptr (Array.of_list llvm_args) "vtable_call" ctx_after_args.builder
+      in
+      (ctx_after_args, result)
     end
   | OptionalSome (typ, _)
   | OptionalNone typ -> begin
