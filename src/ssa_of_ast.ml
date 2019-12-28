@@ -132,6 +132,7 @@ and load_ast_into_universe universe path (directives, decls) =
         (* If we visit a class, we need to create its members. *)
         (* TODO: Create fields, functions *)
         | Ast.ClassDecl ((_, vis, abstract, class_name, _, members)) ->
+          (* Read all modifiers to ensure we don't declare duplicate visibility. *)
           let fold_member_modifier (context, name, final, vis_opt) = function
             | Ast.MemberFinality _ -> (context, name, true, vis_opt)
             | Ast.MemberVisibility (span, vis) -> begin 
@@ -149,7 +150,6 @@ and load_ast_into_universe universe path (directives, decls) =
           in
 
           let fold_member (context, member_map) = function
-            (* Read all modifiers to ensure we don't declare duplicate visibility. *)
             (* TODO: If the parent class has a constructor, the child class must have one (call super).
              * In addition, if you are implementing a class, the implemented class MUST NOT have any fields. *)
             | Ast.ClassField (span, modifiers, name, typ_opt, value_opt) -> begin
@@ -206,6 +206,12 @@ and load_ast_into_universe universe path (directives, decls) =
                 end
               end
             (* TODO: Other kinds of members *)
+            | Ast.ClassFunc (_, vis, (_, name, ast_sig, _)) as ast_member ->
+              let (ctx_after_sig, params, returns) = compile_function_signature context ast_sig in
+              let qualified = Sema.qualify_class_function_name path class_name name in
+              let member = ClassFunc (Method, qualified, params, returns, ast_member) in
+              let new_map = StringMap.add name (vis, member) member_map in
+              (ctx_after_sig, new_map)
             | _ -> (context, member_map)
           in
 

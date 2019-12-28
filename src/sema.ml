@@ -47,6 +47,9 @@ let qualify_function_name module_path = function
   | "main" -> "main"
   | _ as name -> qualify [module_path; name]
 
+let qualify_class_function_name module_path class_name name =
+  qualify [module_path; class_name; name]
+
 let rec string_of_type = function
   | IntType -> "int"
   | DoubleType -> "double"

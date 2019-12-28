@@ -11,13 +11,14 @@ and decl =
   | TypeDecl of span * Visibility.t * string * typ
   | ClassDecl of class_decl
 and func =
-  | ConcreteFunc of span * string * func_signature * block
+  | ConcreteFunc of func_body
   | ExternalFunc of span * (string option) * string * func_signature
+and func_body = span * string * func_signature * block
 and func_signature = span * (param list) * typ
 and class_decl = span * Visibility.t * bool * string * typ list * (class_member list)
 and class_member =
   | ClassField of span * (class_member_modifier list) * string * (typ option) * (expr option)
-  | ClassFunc of span * Visibility.t * func
+  | ClassFunc of span * Visibility.t * func_body
   | Constructor of span * string * func_signature * block
   | Operator of span * string * func_signature * block
 and class_member_modifier =

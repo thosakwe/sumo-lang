@@ -39,7 +39,7 @@ and typ =
   | UnknownType
 and class_member =
   | ClassField of Ast.span * bool * string * typ * (value option)
-  | ClassFunc of class_func_type * string * ((string * typ) list) * typ * Ast.decl
+  | ClassFunc of class_func_type * string * ((string * typ) list) * typ * Ast.class_member
   | UnresolvedClassMember of Ast.class_member
 and class_func_type =
   | Method

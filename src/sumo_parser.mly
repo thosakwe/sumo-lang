@@ -79,7 +79,16 @@ extends:
   | COLON v = separated_list(COMMA, typ) { v }
 
 class_member:
-  | v = vis f = func { Ast.ClassFunc ($loc, v, f) }
+  | v = vis FN name = id s = func_sig b = block
+    {
+      (* If the body is empty, add a "return" *)
+      let nonempty_body =
+        match b with
+        | [] -> [ Ast.Return ($loc(b), None) ]
+        | _ -> b
+      in
+      Ast.ClassFunc ($loc, v, ($loc, name, s, nonempty_body))
+    }
   | m = list(cm_mod)
     n = id
     t = option(m_type)
