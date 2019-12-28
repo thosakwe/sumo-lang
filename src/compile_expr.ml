@@ -86,7 +86,16 @@ let rec compile_expr context = function
         match sym with
 
         (* If we find a function, then verify the number of args. *)
-        | FuncSymbol (_, func_name, params, returns, _) -> begin
+        | VtableSymbol (_, _, _, params, returns)
+        | FuncSymbol (_, _, params, returns, _) -> begin
+            let func_name = match sym with
+              | FuncSymbol (_, n, _, _, _) -> n
+              | VtableSymbol (Class (_, class_name, _, _, _, _), _, n, _, _) -> begin
+                  class_name ^ "." ^ n
+                end
+              | _ -> "<unsupported>"
+            in
+
             if (List.length actual_args) != (List.length params) then 
               let error_msg =
                 "The function \"" ^ func_name ^ "\" expects "
@@ -126,7 +135,11 @@ let rec compile_expr context = function
                 (new_ctx, UnknownType, None)
               else
                 (* Everything is okay, emit the call. *)
-                let value = FunctionCall (returns, func_name, compiled_args) in
+                let value = match sym with
+                  | VtableSymbol (clazz, index, _, _, returns) -> 
+                    VtableCall (returns, clazz, index, compiled_args)
+                  | _ -> FunctionCall (returns, func_name, compiled_args) 
+                in
                 ({ new_ctx with block_is_dead = context.block_is_dead }, returns, Some value)
           end
         | ImportedSymbol (module_ref, name) as sym -> begin
