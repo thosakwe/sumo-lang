@@ -438,11 +438,8 @@ let rec compile_expr context = function
                 let new_ctx = emit_error ctx_after_find span error_msg in
                 (new_ctx, UnknownType, None)
               else
-                (* let value = GetElement (field_type, lhs, field_index) in
-                (ctx_after_find, field_type, Some value) *)
-                let value = Multi [] in
-                ignore field_type;
-                (ctx_after_find, VoidType, Some value)
+                let value = GetElement (field_type, lhs, field_index) in
+                (ctx_after_find, field_type, Some value)
             end
           | _ -> 
             let error_msg =

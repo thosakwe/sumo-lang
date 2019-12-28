@@ -505,7 +505,7 @@ and compile_value context span value =
       match instr with
       | SetElement (_, _, _, rhs) -> 
         let (ctx_after_rhs, llvm_rhs) = compile_value ctx_after_lhs span rhs in
-        (ctx_after_rhs, Llvm.build_store field_ptr llvm_rhs ctx_after_lhs.builder)
+        (ctx_after_rhs, Llvm.build_store llvm_rhs field_ptr ctx_after_lhs.builder)
       | _ -> 
         (ctx_after_lhs, Llvm.build_load field_ptr "get_element" ctx_after_lhs.builder)
     end
@@ -536,21 +536,9 @@ and compile_type context = function
   (* Compile a class by computing the underlying struct.
    * TODO: Include vtable, RTTI, etc.
    *TODO: Include fields from parents *)
-  | Class (_, _, _, _, members) -> begin
-      let fold_member _ (_, member) type_list =
-        match member with
-        | ClassField (_, _, _, typ, _) ->
-          let llvm_type = compile_type context typ in
-          ignore llvm_type;
-          (* type_map @ [llvm_type] *)
-          type_list
-        | _ -> type_list
-      in
-      let llvm_fields = StringMap.fold fold_member members [] in
-      let struct_type =  Llvm.struct_type context (Array.of_list llvm_fields) in
-      let _ = struct_type in
-      (* Llvm.pointer_type struct_type *)
-      Llvm.double_type context
+  | Class _ as self -> begin
+      let struct_type = compile_struct_type context self in
+      Llvm.pointer_type struct_type
     end
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
@@ -563,6 +551,20 @@ and compile_struct_type context = function
 
     let llvm_fields = StringMap.fold fold_field fields [] in
     Llvm.struct_type context (Array.of_list llvm_fields)
+
+  | Class (_, _, _, _, members) -> begin
+      let fold_member _ (_, member) type_list =
+        match member with
+        | ClassField (_, _, _, typ, _) ->
+          let llvm_type = compile_type context typ in
+          (* ignore llvm_type; *)
+          type_list @ [llvm_type]
+        (* type_list *)
+        | _ -> type_list
+      in
+      let llvm_fields = StringMap.fold fold_member members [] in
+      Llvm.struct_type context (Array.of_list llvm_fields)
+    end
   (* Note: This case should never be reached. *)
   | _ -> Llvm.void_type context
 
