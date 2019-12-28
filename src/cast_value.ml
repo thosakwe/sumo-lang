@@ -71,5 +71,4 @@ let rec cast_value context span value_opt from_type to_type =
             let coerced_value = StructLiteral (to_type, value_map) in
             (ctx_after_fields, Ok (Some coerced_value))
       end
-    (* TODO: Optional struct casts? *)
     | _ ->  failure

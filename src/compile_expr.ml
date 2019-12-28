@@ -4,7 +4,6 @@ open Ssa
 open Ssa_context
 
 let rec compile_expr context = function
-  (* TODO: Other exprs *)
   | Ast.IntLiteral (_, v) -> (context, IntType, Some (IntLiteral v))
   | Ast.DoubleLiteral (_, v) -> (context, DoubleType, Some (DoubleLiteral v))
   | Ast.BoolLiteral (_, v) -> (context, BoolType, Some (BoolLiteral v))
@@ -79,7 +78,7 @@ let rec compile_expr context = function
       (* 1. Make sure target is a function.
        * 2. Ensure correct # of args
        * 3. Ensure correct arg types
-       * 4. TODO: Create new instances of classes, or invoke closures.
+       * 4. TODO: Invoke closures.
       *)
 
       (* It's important to note, though, that at this time, we don't have closures,
@@ -224,7 +223,6 @@ let rec compile_expr context = function
                 let new_ctx = emit_error ctx_after_right span error_msg in
                 (new_ctx, UnknownType, None)
               (* If we do have a shift, the right must be an int. *)
-              (* TODO: No boolean ops *)
               | (IntType, Ast.Shift _) -> begin
                   match cast_value ctx_after_right span rhs_opt rhs_type IntType with
                   | (new_ctx, Error _) -> (new_ctx, UnknownType, None)
@@ -290,7 +288,6 @@ let rec compile_expr context = function
             (new_ctx, UnknownType, None)
         end
     end
-  (* TODO: Implement unaries *)
   | Ast.Unary (span, expr, op) -> begin
       let (ctx_after_expr, expr_type, value_opt) = compile_expr context expr in
       let failure =

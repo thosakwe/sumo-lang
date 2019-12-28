@@ -22,7 +22,6 @@ and load_ast_into_universe universe path (directives, decls) =
   (* Before we actually compile anything, forward-declare all functions/types
    * in the module. After this, then we can then compile the actual
    * functions, and then compile everything into LLVM. *)
-  (* TODO: Imports *)
 
   let default_context =
     {

@@ -9,7 +9,6 @@ let rec compile_stmt (initial_context, out_list, expected_return) stmt =
   (* If the current block has already returned/broken, issue a warning. *)
   match stmt with
   (* If we get an expression, just compile it. *)
-  (* TODO: Do these actually generate? *)
   | Ast.Expr (span, v) -> begin
       let context = handle_dead_code span initial_context in
       match compile_expr context v with

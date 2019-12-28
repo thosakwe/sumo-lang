@@ -416,14 +416,9 @@ and compile_value context span value =
       let new_ctx = emit_error context span error_msg in
       (new_ctx, error_value)
     else
-      (* let llvm_type = compile_type context.llvm_context typ in *)
       let (new_ctx, llvm_value) = compile_value context span value in
-      (* let variable = Llvm.build_alloca llvm_type name new_ctx.builder in *)
       let variable = Scope.find name context.scope in
       let _ = Llvm.build_store llvm_value variable new_ctx.builder in
-      (* TODO: LLVM causes a segfault if we try to produce a "load" of the new var.
-       * For some reason, the return type is always void. *)
-      (* let result = Llvm.build_load variable "tmp" new_ctx.builder in *)
       let result = variable in
       let new_scope = Scope.replace name result context.scope in
       ({ new_ctx with scope = new_scope }, variable)

@@ -61,8 +61,6 @@ and expr =
   | NoneLiteral of span
   | StructLiteral of span * ((span * string * expr) list)
   | GetField of span * expr * string
-  (* TODO: Postfix, prefix increment *)
-(* TODO: Prefix plus/minus *)
 and binary_op =
   | Multiply
   | Divide
@@ -79,7 +77,6 @@ and binary_op =
   | Neq
   | BooleanAnd
   | BooleanOr
-  (* TODO: Bitwise, boolean operators *)
 and unary_op =
   | PostfixIncrement
   | PostfixDecrement
