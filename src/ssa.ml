@@ -35,10 +35,10 @@ and typ =
   | VoidType
   | OptionalType of typ
   | StructType of typ StringMap.t
-  | Class of string * (typ option) * (typ list)
+  | Class of bool * string * (typ option) * (typ list) * ((Visibility.t * class_member) StringMap.t)
   | UnknownType
 and class_member =
-  | ClassField of string * typ * (value option)
+  | ClassField of bool * string * typ * (value option)
   | ClassFunc of class_func_type * string * ((string * typ) list) * typ * Ast.decl
   | UnresolvedClassMember of Ast.class_member
 and class_func_type =
@@ -176,7 +176,7 @@ and string_of_type = function
       else
         "{ " ^ field_str ^ " }"
     end
-  | Class (name, _, _) -> "class " ^ name ^ " {}"
+  | Class (_, name, _, _, _) -> "class " ^ name ^ " {}"
 and string_of_value = function
   | IntLiteral v -> string_of_int v
   | DoubleLiteral v -> string_of_float v

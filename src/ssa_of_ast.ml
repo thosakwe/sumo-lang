@@ -1,4 +1,6 @@
+open Cast_value
 open Compile_function
+open Compile_expr
 open Compile_type
 open Ssa
 open Ssa_context
@@ -127,12 +129,91 @@ and load_ast_into_universe universe path (directives, decls) =
             let new_scope = Scope.replace name symbol context.scope in
             ({ new_ctx with scope = new_scope }, pair_list @ [pair])
           end
-        | Ast.ClassDecl ((_, vis, _, name, _, _)) ->
-          let typ = Class (name, None, []) in
+        (* If we visit a class, we need to create its members. *)
+        (* TODO: Create fields, functions *)
+        | Ast.ClassDecl ((_, vis, abstract, class_name, _, members)) ->
+          let fold_member_modifier (context, name, final, vis_opt) = function
+            | Ast.MemberFinality _ -> (context, name, true, vis_opt)
+            | Ast.MemberVisibility (span, vis) -> begin 
+                match vis_opt with
+                | None -> (context, name, final, Some vis)
+                | Some existing ->
+                  let error_msg =
+                    "The field \"" ^ name ^ "\" has already been marked as a "
+                    ^ (Visibility.string_of_visibility existing)
+                    ^ " member." 
+                  in
+                  let new_ctx = emit_error context span error_msg in
+                  (new_ctx, name, final, vis_opt)
+              end
+          in
+
+          let fold_member (context, member_map) = function
+            (* Read all modifiers to ensure we don't declare duplicate visibility. *)
+            | Ast.ClassField (span, modifiers, name, typ_opt, value_opt) -> begin
+                if StringMap.mem name member_map then
+                  let error_msg =
+                    "The class \"" ^ class_name
+                    ^ "\" has already defined a member named \"" ^ name ^ "\"."
+                  in
+                  let new_ctx = emit_error context span error_msg in
+                  (new_ctx, member_map)
+                else begin
+                  let (ctx_after_modifiers, _, final, vis_opt) =
+                    List.fold_left fold_member_modifier (context, name, false, None) modifiers
+                  in
+                  let vis = match vis_opt with
+                    | None -> Visibility.Private
+                    | Some v -> v
+                  in
+                  (* We must be able to figure out the type of this value.
+                   * If no type is given, then there MUST be a given value. *)
+                  (* If a value is given, it must be castable to the provided type. *)
+                  match (typ_opt, value_opt) with
+                  | (None, None) ->
+                    let error_msg = "If no type is given, then a default value must be provided." in
+                    let new_ctx = emit_error context span error_msg in
+                    (new_ctx, member_map)
+                  | _ -> begin
+                      let (ctx_after_value, field_type, compiled_value_opt) = match value_opt with
+                        | None -> (ctx_after_modifiers, UnknownType, None)
+                        | Some value -> begin
+                            let (ctx_after_value, value_type, compiled_value_opt) = 
+                              compile_expr ctx_after_modifiers value
+                            in
+                            match typ_opt with
+                            | None -> (ctx_after_value, value_type, compiled_value_opt)
+                            | Some typ_ast -> begin
+                                let (ctx_after_type, compiled_type) = compile_type ctx_after_value typ_ast in
+                                match cast_value ctx_after_type span compiled_value_opt value_type compiled_type with
+                                | (ctx_after_cast, Error _) ->
+                                  (ctx_after_cast, compiled_type, None)
+                                | (ctx_after_cast, Ok coerced_value_opt) ->
+                                  (ctx_after_cast, compiled_type, coerced_value_opt)
+                              end
+                          end
+                      in
+
+                      let member = ClassField (final, name, field_type, compiled_value_opt) in
+                      let new_map = StringMap.add name (vis, member) member_map in
+                      (ctx_after_value, new_map)
+                    end
+
+                end
+              end
+            (* TODO: Other kinds of members *)
+            | _ -> (context, member_map)
+          in
+
+          let (ctx_after_members, member_map) =
+            List.fold_left fold_member (context, StringMap.empty) members 
+          in
+
+          let typ = Class (abstract, class_name, None, [], member_map) in
           let symbol = TypeSymbol typ in
-          let pair = (name, (vis, symbol)) in
-          let new_scope = Scope.replace name symbol context.scope in
-          ({ context with scope = new_scope }, pair_list @ [pair])
+          let pair = (class_name, (vis, symbol)) in
+          let new_scope = Scope.replace class_name symbol context.scope in
+          ({ ctx_after_members with scope = new_scope }, pair_list @ [pair])
         | _ -> (context, pair_list)
       in
       List.fold_left fold_type_decl (ctx_after_imports, []) decls
