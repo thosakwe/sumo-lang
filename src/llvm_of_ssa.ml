@@ -533,9 +533,21 @@ and compile_type context = function
   | StructType (fields) ->
     let struct_type = compile_struct_type context (StructType fields) in
     Llvm.pointer_type struct_type
-  (* TODO: Compile classes to structs *)
-  | Class _ ->
-    Llvm.pointer_type (Llvm.void_type context)
+  (* Compile a class by computing the underlying struct.
+   * TODO: Include vtable, RTTI, etc.
+   *TODO: Include fields from parents *)
+  | Class (_, _, _, _, members) -> begin
+      let fold_member _ (_, member) type_map =
+        match member with
+        | ClassField (_, _, _, typ, _) ->
+          let llvm_type = compile_type context typ in
+          type_map @ [llvm_type]
+        | _ -> type_map
+      in
+      let llvm_fields = StringMap.fold fold_member members [] in
+      let struct_type =  Llvm.struct_type context (Array.of_list llvm_fields) in
+      Llvm.pointer_type struct_type
+    end
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
 
