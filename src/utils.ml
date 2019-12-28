@@ -39,7 +39,16 @@ let dump_error source_text e =
   let (span, level, error_msg) = e in
   let (start_pos, end_pos) = span in
   let text_region = 
-    String.sub source_text (start_pos.pos_bol) (end_pos.pos_cnum - start_pos.pos_bol)
+    let rec find_newline index =
+      if index >= (String.length source_text) then
+        index
+      else if (String.get source_text index) = '\n' then
+        index
+      else
+        find_newline (index + 1)
+    in
+    let endl = find_newline end_pos.pos_cnum in
+    String.sub source_text (start_pos.pos_bol) (endl - start_pos.pos_bol)
   in
   let resetAll = "\u{001b}[0m" in
   let bold = "\u{001b}[1m" in

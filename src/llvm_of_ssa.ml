@@ -537,16 +537,20 @@ and compile_type context = function
    * TODO: Include vtable, RTTI, etc.
    *TODO: Include fields from parents *)
   | Class (_, _, _, _, members) -> begin
-      let fold_member _ (_, member) type_map =
+      let fold_member _ (_, member) type_list =
         match member with
         | ClassField (_, _, _, typ, _) ->
           let llvm_type = compile_type context typ in
-          type_map @ [llvm_type]
-        | _ -> type_map
+          ignore llvm_type;
+          (* type_map @ [llvm_type] *)
+          type_list
+        | _ -> type_list
       in
       let llvm_fields = StringMap.fold fold_member members [] in
       let struct_type =  Llvm.struct_type context (Array.of_list llvm_fields) in
-      Llvm.pointer_type struct_type
+      let _ = struct_type in
+      (* Llvm.pointer_type struct_type *)
+      Llvm.double_type context
     end
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
