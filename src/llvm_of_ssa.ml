@@ -101,15 +101,15 @@ let rec compile_universe module_path errors universe =
                   let fold_pair _ value out_list = out_list @ [value] in
                   IntMap.fold fold_pair pointer_map []
                 in
-                let void_ptr =
-                  Llvm.void_type llvm_context
+                let int_ptr =
+                  Llvm.i8_type llvm_context
                   |> Llvm.pointer_type
                 in
-                let void_ptr_ptr = Llvm.pointer_type void_ptr in
-                let vtable_array = Llvm.const_array (void_ptr) (Array.of_list vtable_values) in
+                let int_ptr_ptr = Llvm.pointer_type int_ptr in
+                let vtable_array = Llvm.const_array (int_ptr) (Array.of_list vtable_values) in
                 let vtable_global = Llvm.define_global class_vtable_name vtable_array llvm_module in
                 let vtable_cast =
-                  Llvm.const_pointercast vtable_global void_ptr_ptr
+                  Llvm.const_pointercast vtable_global int_ptr_ptr
                 in
 
                 pairs_after_members @ [(class_vtable_name, vtable_cast)]
@@ -704,7 +704,7 @@ and compile_struct_type context = function
       let global_fields = 
         [
           Llvm.i64_type context;
-          Llvm.pointer_type (Llvm.pointer_type (Llvm.void_type context));
+          Llvm.pointer_type (Llvm.pointer_type (Llvm.i8_type context));
         ]
       in
       let llvm_fields = StringMap.fold fold_member members global_fields in
