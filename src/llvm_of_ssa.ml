@@ -36,7 +36,7 @@ let rec compile_universe module_path errors universe =
              * TODO: Prevent duplicates
              *
              * The only exception is "external" functions. *)
-        let forward_decl out_list ext params returns llvm_name =
+        let forward_decl out_list ext params returns llvm_name prelude_params =
           (* if (module_path == path) && (not ext) then begin *)
           if false then begin
             let _ = path, ext in
@@ -46,7 +46,9 @@ let rec compile_universe module_path errors universe =
             out_list
           end
           else
-            let llvm_function_type = compile_function_signature llvm_context params returns in
+            let llvm_function_type =
+              compile_function_signature llvm_context params returns prelude_params
+            in
             let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
             out_list @ [(name, value)]
         in
@@ -57,7 +59,7 @@ let rec compile_universe module_path errors universe =
           let value = Llvm.declare_global llvm_type qualified_name llvm_module in
           out_list @ [(name, value)]
         | FuncSymbol (ext, llvm_name, params, returns, _) ->
-          forward_decl out_list ext params returns llvm_name
+          forward_decl out_list ext params returns llvm_name []
         | ParamSymbol _ -> out_list
         | ImportedSymbol _ -> out_list
         | TypeSymbol t -> begin 
@@ -67,7 +69,9 @@ let rec compile_universe module_path errors universe =
                 let fold_member _ (_, member) out_list = 
                   match member with
                   | ClassFunc (_, llvm_name, params, returns, _) ->
-                    forward_decl out_list false params returns llvm_name
+                    let this_type = compile_type llvm_context t in
+                    let prelude_params = [this_type] in
+                    forward_decl out_list false params returns llvm_name prelude_params
                   | _ -> out_list
                 in
                 StringMap.fold fold_member members out_list
@@ -110,7 +114,7 @@ let rec compile_universe module_path errors universe =
   StringMap.fold folder universe.modules initial_context
 
 and compile_function context (name, params, returns, instrs) =
-  let llvm_function_type = compile_function_signature context.llvm_context params returns in
+  let llvm_function_type = compile_function_signature context.llvm_context params returns [] in
   let func = Llvm.define_function name llvm_function_type context.llvm_module in
 
   (* Create a new scope, with the function name and params injected. *)
@@ -549,14 +553,15 @@ and compile_value context span value =
         (ctx_after_lhs, Llvm.build_load field_ptr "get_element" ctx_after_lhs.builder)
     end
 
-and compile_function_signature llvm_context params returns =
+and compile_function_signature llvm_context params returns prelude_params =
   let llvm_params =
     let llvm_of_param p = compile_type llvm_context p in
     let param_types = List.map (function (_, t) -> t) params in
     List.map llvm_of_param param_types
   in
+  let all_params = prelude_params @ llvm_params in
   let llvm_returns = compile_type llvm_context returns in
-  Llvm.function_type llvm_returns (Array.of_list llvm_params)
+  Llvm.function_type llvm_returns (Array.of_list all_params)
 
 and compile_type context = function
   | IntType -> Llvm.i64_type context
