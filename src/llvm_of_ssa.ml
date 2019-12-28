@@ -503,14 +503,38 @@ and compile_value context span value =
       let llvm_struct_type = compile_struct_type context.llvm_context struct_type in
       let struct_pointer = Llvm.build_alloca llvm_struct_type "literal_struct_ptr" context.builder in
       let _ = struct_pointer, fields in
-      let fold_field name value (context, index) =
-        let (new_ctx, llvm_value) = compile_value context span value in
+
+      (* Helper for emitting a set-field. *)
+      let emit_field name value context index =
         let field_ptr_name = "literal_struct_value_" ^ name in
         let field_ptr = Llvm.build_struct_gep struct_pointer index field_ptr_name context.builder in
-        let _ = Llvm.build_store llvm_value field_ptr context.builder in
+        let _ = Llvm.build_store value field_ptr context.builder in
+        ()
+      in
+
+      (* Before inserting the object's fields, insert the RTTI hash, followed by the
+       * pointer to the vtable. *)
+      begin
+        match struct_type with
+        | Class (_, class_name, _, _, _) -> 
+          let i64_type = Llvm.i64_type context.llvm_context in
+          let rtti_hash = Utils.djb2 class_name in
+          let llvm_hash = Llvm.const_int i64_type rtti_hash in
+          emit_field "@rtti_hash" llvm_hash context 0;
+          ()
+        | _ -> ()
+      end;
+
+      let fold_field name value (context, index) =
+        let (new_ctx, llvm_value) = compile_value context span value in
+        emit_field name llvm_value new_ctx index;
         (new_ctx, index + 1)
       in
-      let (new_ctx, _) = StringMap.fold fold_field fields (context, 0) in
+      let initial_index = match struct_type with
+        | Class _ -> 2
+        | _ -> 0
+      in
+      let (new_ctx, _) = StringMap.fold fold_field fields (context, initial_index) in
       (new_ctx, struct_pointer)
     end
   | (GetElement (_, lhs, index) as instr)
