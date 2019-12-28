@@ -390,27 +390,57 @@ let rec compile_expr context = function
       | (ctx_after_expr, expr_type, Some lhs) -> begin
           match expr_type with
           (* Find the index of the given field. *)
-          | StructType field_types ->
-            let find_field n typ (context, out_typ, out_index, current_index) =
-              if n <> name then
-                (context, out_typ, out_index, current_index + 1)
-              else
-                (context, typ, current_index, current_index + 1)
-            in
-            let initial_data = (ctx_after_expr, UnknownType, -1, 0) in
-            let (ctx_after_find, field_type, field_index, _) =
-              StringMap.fold find_field field_types initial_data
-            in
-            if field_index = -1 then
-              let error_msg =
-                string_of_type (StructType field_types)
-                ^ " has no getter named \"" ^ name ^ "\"."
+          | StructType field_types -> begin
+              let find_field n typ (context, out_typ, out_index, current_index) =
+                if n <> name then
+                  (context, out_typ, out_index, current_index + 1)
+                else
+                  (context, typ, current_index, current_index + 1)
               in
-              let new_ctx = emit_error ctx_after_find span error_msg in
-              (new_ctx, UnknownType, None)
-            else
-              let value = GetElement (field_type, lhs, field_index) in
-              (ctx_after_find, field_type, Some value)
+              let initial_data = (ctx_after_expr, UnknownType, -1, 0) in
+              let (ctx_after_find, field_type, field_index, _) =
+                StringMap.fold find_field field_types initial_data
+              in
+              if field_index = -1 then
+                let error_msg =
+                  string_of_type (StructType field_types)
+                  ^ " has no getter named \"" ^ name ^ "\"."
+                in
+                let new_ctx = emit_error ctx_after_find span error_msg in
+                (new_ctx, UnknownType, None)
+              else
+                let value = GetElement (field_type, lhs, field_index) in
+                (ctx_after_find, field_type, Some value)
+            end
+          (* If we find a class, it can be either a field, or a getter.
+           * TODO: Call getters.
+           * TODO: Check fields from parent types. *)
+          | Class (_, _, _, _, members) -> begin
+              let find_field n (_, member) (context, out_typ, out_index, current_index) =
+                if n <> name then
+                  (context, out_typ, out_index, current_index + 1)
+                else
+                  (* TODO: Check if we have access to the class. *)
+                  match member with
+                  | ClassField (_, _, _, field_type, _) ->  
+                    (context, field_type, current_index, current_index + 1)
+                  | _ -> (context, out_typ, out_index, current_index + 1)
+              in
+              let initial_data = (ctx_after_expr, UnknownType, -1, 0) in
+              let (ctx_after_find, field_type, field_index, _) =
+                StringMap.fold find_field members initial_data
+              in
+              if field_index = -1 then
+                let error_msg =
+                  string_of_type expr_type
+                  ^ " has no getter named \"" ^ name ^ "\"."
+                in
+                let new_ctx = emit_error ctx_after_find span error_msg in
+                (new_ctx, UnknownType, None)
+              else
+                let value = GetElement (field_type, lhs, field_index) in
+                (ctx_after_find, field_type, Some value)
+            end
           | _ -> 
             let error_msg =
               "Values of type " ^ (string_of_type expr_type) ^ " do not have any fields."
