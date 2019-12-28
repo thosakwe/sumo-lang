@@ -74,28 +74,31 @@ let rec compile_expr context = function
     end
   | Ast.Assign (span, target, op, value) -> compile_assign context compile_expr (span, target, op, value)
   (* If we find a call, there's quite a bit we have to do properly resolve it. *)
-  | Ast.Call (span, target, args) -> begin
+  | Ast.Call (span, target, raw_args) -> begin
       (* 1. Make sure target is a function.
        * 2. Ensure correct # of args
        * 3. Ensure correct arg types
        * 4. TODO: Invoke closures.
       *)
 
-      let rec invoke_symbol prelude_args = function
+      let rec invoke_symbol prelude_args sym =
+        let actual_args = (prelude_args @ raw_args) in
+        match sym with
+
         (* If we find a function, then verify the number of args. *)
         | FuncSymbol (_, func_name, params, returns, _) -> begin
-            if (List.length args) != (List.length params) then 
+            if (List.length actual_args) != (List.length params) then 
               let error_msg =
                 "The function \"" ^ func_name ^ "\" expects "
                 ^ (string_of_int (List.length params))
                 ^ " argument(s), but "
-                ^ (string_of_int (List.length args))
+                ^ (string_of_int (List.length actual_args))
                 ^ " argument(s) were provided instead."
               in
               ((emit_error context span error_msg), UnknownType, None)
             else
               (* If we have the correct number of args, then perform type-checking. *)
-              let params_to_args = List.combine params (prelude_args @ args) in
+              let params_to_args = List.combine params actual_args in
               let check_one_pair (context, out_list, success) ((name, param_type), arg) =
                 (* The type-check only fails if we reach a cast failure. *)
                 let (new_ctx, typ, value_opt) = compile_expr context arg in
@@ -145,7 +148,7 @@ let rec compile_expr context = function
             let constructor = None in
             match constructor with
             | None -> begin
-                match args with
+                match actual_args with
                 | [_] | _ :: _ ->
                   let error_msg = 
                     "The class \"" ^ class_name ^ "\" has no defined constructor, so no arguments"
