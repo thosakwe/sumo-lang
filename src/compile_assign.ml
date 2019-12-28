@@ -109,7 +109,7 @@ let rec compile_assign context compile_expr = function
       (* If we find a class, it can be either a field, or a setter.
            * TODO: Call getters.
            * TODO: Check fields from parent types. *)
-      | Class (_, _, _, _, members) -> begin
+      | Class (_, _, _, _, members, _) -> begin
           let find_field n (_, member) (context, out_typ, out_index, current_index) =
             if n <> name then
               (context, out_typ, out_index, current_index + 1)

@@ -137,3 +137,8 @@ let dump_error source_text e =
   print_highlight start_pos.pos_cnum;
   print_string resetAll;
   print_newline ()
+
+let length_of_map map =
+  let open Sema in
+  let fold _ _ count = count + 1 in
+  StringMap.fold fold map 0

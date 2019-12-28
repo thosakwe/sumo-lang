@@ -65,7 +65,7 @@ let rec compile_universe module_path errors universe =
         | TypeSymbol t -> begin 
             (* If we get a class, also forward declare its functions. *)
             match t with
-            | Class (_, _, _, _, members) -> begin
+            | Class (_, _, _, _, members, _) -> begin
                 let fold_member _ (_, member) out_list = 
                   match member with
                   | ClassFunc (_, llvm_name, params, returns, _) ->
@@ -78,6 +78,7 @@ let rec compile_universe module_path errors universe =
               end
             | _ -> out_list 
           end
+        | VtableSymbol _ -> out_list
       in
       List.fold_left llvm_of_pair [] pairs
     in
@@ -472,6 +473,23 @@ and compile_value context span value =
         in
         (new_ctx, Llvm.build_call target (Array.of_list llvm_args) return_name new_ctx.builder)
     end
+  | VtableCall (_, _, index, args) -> begin
+      (* let struct_type = compile_struct_type context.llvm_context clazz in *)
+      (* Yes, this is bad style. No, I do not care (yet!). *)
+      let lhs = List.hd args in
+      let (ctx_after_lhs, llvm_lhs) = compile_value context span lhs in
+      let vtable_ptr = Llvm.build_struct_gep llvm_lhs index "vtable_call" ctx_after_lhs.builder in
+      let vtable = Llvm.build_load vtable_ptr "load_vtable" ctx_after_lhs.builder in
+      let func_ptr = Llvm.build_extractvalue vtable index "vtable_lookup" ctx_after_lhs.builder in
+      let (ctx_after_args, llvm_args) =
+        let compile_arg (context, out_list) arg =
+          let (new_ctx, value) = compile_value context span arg in
+          (new_ctx, out_list @ [value])
+        in
+        List.fold_left compile_arg (ctx_after_lhs, []) args
+      in
+      (ctx_after_args, Llvm.build_call func_ptr (Array.of_list llvm_args) "vtable_call" ctx_after_args.builder)
+    end
   | OptionalSome (typ, _)
   | OptionalNone typ -> begin
       let bool_type = compile_type context.llvm_context BoolType in
@@ -520,7 +538,7 @@ and compile_value context span value =
        * pointer to the vtable. *)
       begin
         match struct_type with
-        | Class (_, class_name, _, _, _) -> 
+        | Class (_, class_name, _, _, _, _) -> 
           let i64_type = Llvm.i64_type context.llvm_context in
           let rtti_hash = Utils.djb2 class_name in
           let llvm_hash = Llvm.const_int i64_type rtti_hash in
@@ -596,7 +614,7 @@ and compile_struct_type context = function
     let llvm_fields = StringMap.fold fold_field fields [] in
     Llvm.struct_type context (Array.of_list llvm_fields)
 
-  | Class (_, _, _, _, members) -> begin
+  | Class (_, _, _, _, members, _) -> begin
       let fold_member _ (_, member) type_list =
         match member with
         | ClassField (_, _, _, typ, _) ->

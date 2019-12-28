@@ -149,7 +149,7 @@ and load_ast_into_universe universe path (directives, decls) =
               end
           in
 
-          let fold_member (context, member_map) = function
+          let fold_member (context, member_map, vtable_map) = function
             (* TODO: If the parent class has a constructor, the child class must have one (call super).
              * In addition, if you are implementing a class, the implemented class MUST NOT have any fields. *)
             | Ast.ClassField (span, modifiers, name, typ_opt, value_opt) -> begin
@@ -159,7 +159,7 @@ and load_ast_into_universe universe path (directives, decls) =
                     ^ "\" has already defined a member named \"" ^ name ^ "\"."
                   in
                   let new_ctx = emit_error context span error_msg in
-                  (new_ctx, member_map)
+                  (new_ctx, member_map, vtable_map)
                 else begin
                   let (ctx_after_modifiers, _, final, vis_opt) =
                     List.fold_left fold_member_modifier (context, name, false, None) modifiers
@@ -176,7 +176,7 @@ and load_ast_into_universe universe path (directives, decls) =
                   | (None, None) ->
                     let error_msg = "If no type is given, then a default value must be provided." in
                     let new_ctx = emit_error context span error_msg in
-                    (new_ctx, member_map)
+                    (new_ctx, member_map, vtable_map)
                   | _ -> begin
                       let (ctx_after_value, field_type, compiled_value_opt) = match value_opt with
                         | None -> (ctx_after_modifiers, UnknownType, None)
@@ -199,8 +199,8 @@ and load_ast_into_universe universe path (directives, decls) =
                       in
 
                       let member = ClassField (span, final, name, field_type, compiled_value_opt) in
-                      let new_map = StringMap.add name (vis, member) member_map in
-                      (ctx_after_value, new_map)
+                      let new_member_map = StringMap.add name (vis, member) member_map in
+                      (ctx_after_value, new_member_map, vtable_map)
                     end
 
                 end
@@ -210,16 +210,17 @@ and load_ast_into_universe universe path (directives, decls) =
               let (ctx_after_sig, params, returns) = compile_function_signature context ast_sig in
               let qualified = Sema.qualify_class_function_name path class_name name in
               let member = ClassFunc (Method, qualified, params, returns, ast_member) in
-              let new_map = StringMap.add name (vis, member) member_map in
-              (ctx_after_sig, new_map)
-            | _ -> (context, member_map)
+              let new_member_map = StringMap.add name (vis, member) member_map in
+              let new_vtable_map = StringMap.add name (Utils.length_of_map vtable_map) vtable_map in
+              (ctx_after_sig, new_member_map, new_vtable_map)
+            | _ -> (context, member_map, vtable_map)
           in
 
-          let (ctx_after_members, member_map) =
-            List.fold_left fold_member (context, StringMap.empty) members 
+          let (ctx_after_members, member_map, vtable_map) =
+            List.fold_left fold_member (context, StringMap.empty, StringMap.empty) members 
           in
 
-          let typ = Class (abstract, class_name, None, [], member_map) in
+          let typ = Class (abstract, class_name, None, [], member_map, vtable_map) in
           let symbol = TypeSymbol typ in
           let pair = (class_name, (vis, symbol)) in
           let new_scope = Scope.replace class_name symbol context.scope in

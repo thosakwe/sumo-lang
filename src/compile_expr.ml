@@ -142,7 +142,7 @@ let rec compile_expr context = function
               ((emit_error context span error_msg), UnknownType, None)
           end
         (* If we find a class, invoke its constructor. *)
-        | TypeSymbol ((Class (_, class_name, _, _, members) as clazz)) -> begin
+        | TypeSymbol ((Class (_, class_name, _, _, members, _) as clazz)) -> begin
             (* If there is no constructor, then the arg list must be empty. *)
             (* TODO: Also include fields from parent classes *)
             let constructor = None in
@@ -197,19 +197,19 @@ let rec compile_expr context = function
           else
             invoke_symbol [] (Scope.find name context.scope)
         end
-      (* If we get instance.x(...), we want to compile it into a FuncSymbol, and then
-       * pass that back into invoke_symbol.
+      (* If we get instance.x(...), we want to compile it into a v-table lookup, and then
+       * create an IndirectCall.
        * Ultimately, we have to also pass in a pointer to the class as the first argument. *)
       | Ast.GetField (span, lhs, member_name) -> begin
           (* Ensure that lhs is an instance of some class. If so, try to find a corresponding
            * method, with the correct access for this context. If all is well, fabricate a
-           * FuncSymbol, and pass that back into invoke_symbol. *)
+           * v-table call. *)
           let (_, lhs_type, _) = compile_expr context lhs in
           let ctx_after_lhs = context in
           match lhs_type with
           (* TODO: Search for matching method in parent classes.
            * TODO: Emit method calls as v-table lookups. *)
-          | Class (_, class_name, _, _, members) as clazz -> begin
+          | Class (_, class_name, _, _, members, vtable) as clazz -> begin
               match StringMap.find_opt member_name members with
               | None -> 
                 let error_msg = 
@@ -246,9 +246,11 @@ let rec compile_expr context = function
                     let new_ctx = emit_error ctx_after_lhs span access_error_msg in
                     (new_ctx, UnknownType, None)
                   else begin
-                    (* Create the new func symbol. *)
+                    (* Emit an IndirectCall to the vtable pointer. We want to reuse logic, though.
+                     * So create a VtableSymbol. *)
+                    let vtable_index = StringMap.find member_name vtable in
                     let new_params = [("this", clazz)] @ params in
-                    let new_symbol = FuncSymbol (false, func_name, new_params, returns, Ast.DummyDecl) in
+                    let new_symbol = VtableSymbol (clazz, vtable_index, func_name, new_params, returns) in
                     let (new_ctx, out_type, value_opt) = invoke_symbol [lhs] new_symbol in
                     (new_ctx, out_type, value_opt)
                   end
@@ -485,7 +487,7 @@ let rec compile_expr context = function
           (* If we find a class, it can be either a field, or a getter.
            * TODO: Call getters.
            * TODO: Check fields from parent types. *)
-          | Class (_, class_name, _, _, members) as clazz -> begin
+          | Class (_, class_name, _, _, members, _) as clazz -> begin
               let find_field member_name (vis, member) (context, out_typ, out_index, current_index) =
                 if member_name <> name then
                   (context, out_typ, out_index, current_index + 1)

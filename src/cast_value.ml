@@ -75,7 +75,7 @@ let rec cast_value context span value_opt from_type to_type =
 
 let rec class_extends parent_type child_type  =
   match child_type with
-  | Class (_, _, extends_opt, implements, _) ->  begin
+  | Class (_, _, extends_opt, implements, _, _) ->  begin
       let all_parents  = match extends_opt with 
         | None -> implements
         | Some e -> [e] @ implements
