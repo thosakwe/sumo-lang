@@ -77,13 +77,15 @@ let rec compile_universe module_path errors universe =
              * Vtable items must be in order, but vtable_indices is a string->int map.
              * We can reverse the map, and then fold them into a list of pointers. *)
             match t with
-            | Class (_, _, _, _, members, vtable_indices) -> begin
+            | Class (_, class_name, _, _, members, vtable_indices) -> begin
                 let fold_member member_name (_, member) (pair_list, pointer_map) = 
                   match member with
                   | ClassFunc (_, llvm_name, params, returns, _) ->
                     let this_type = compile_type llvm_context t in
                     let prelude_params = [this_type] in
-                    let (pair_name, llvm_value) = forward_decl pair_list false params returns llvm_name prelude_params in
+                    let (pair_name, llvm_value) =
+                      forward_decl pair_list false params returns llvm_name prelude_params
+                    in
                     let index = StringMap.find member_name vtable_indices in
                     let new_pointer_map = IntMap.add index llvm_value pointer_map in
                     ((pair_list @ [(pair_name, llvm_value)]), new_pointer_map)
@@ -93,9 +95,24 @@ let rec compile_universe module_path errors universe =
                   StringMap.fold fold_member members (out_list, IntMap.empty) 
                 in
 
-                let _ = pointer_map in
+                (* Now that we have a pointer map, turn it to a list, and declare a global array. *)
+                let class_vtable_name = (vtable_name class_name) in
+                let vtable_values = 
+                  let fold_pair _ value out_list = out_list @ [value] in
+                  IntMap.fold fold_pair pointer_map []
+                in
+                let void_ptr =
+                  Llvm.void_type llvm_context
+                  |> Llvm.pointer_type
+                in
+                let void_ptr_ptr = Llvm.pointer_type void_ptr in
+                let vtable_array = Llvm.const_array (void_ptr) (Array.of_list vtable_values) in
+                let vtable_global = Llvm.define_global class_vtable_name vtable_array llvm_module in
+                let vtable_cast =
+                  Llvm.const_pointercast vtable_global void_ptr_ptr
+                in
 
-                pairs_after_members
+                pairs_after_members @ [(class_vtable_name, vtable_cast)]
               end
             | _ -> out_list 
           end
