@@ -226,7 +226,7 @@ and string_of_value = function
     "(getelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_int index) ^ ") of "
     ^ (string_of_value lhs) ^ ")"
   | SetElement (typ, lhs, index, rhs) ->
-    "(getelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_int index) ^ ") of "
+    "(setelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_int index) ^ ") of "
     ^ (string_of_value lhs) ^ " = " ^ (string_of_value rhs) ^ ")"
 
 let dump_module _ module_ref =
