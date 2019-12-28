@@ -150,6 +150,8 @@ and load_ast_into_universe universe path (directives, decls) =
 
           let fold_member (context, member_map) = function
             (* Read all modifiers to ensure we don't declare duplicate visibility. *)
+            (* TODO: If the parent class has a constructor, the child class must have one (call super).
+             * In addition, if you are implementing a class, the implemented class MUST NOT have any fields. *)
             | Ast.ClassField (span, modifiers, name, typ_opt, value_opt) -> begin
                 if StringMap.mem name member_map then
                   let error_msg =
@@ -167,8 +169,9 @@ and load_ast_into_universe universe path (directives, decls) =
                     | Some v -> v
                   in
                   (* We must be able to figure out the type of this value.
-                   * If no type is given, then there MUST be a given value. *)
-                  (* If a value is given, it must be castable to the provided type. *)
+                   * If no type is given, then there MUST be a given value.
+                   * If a value is given, it must be castable to the provided type. 
+                   * TODO: If no value is provided, there MUST be a constructor that initializes it. *)
                   match (typ_opt, value_opt) with
                   | (None, None) ->
                     let error_msg = "If no type is given, then a default value must be provided." in
@@ -195,7 +198,7 @@ and load_ast_into_universe universe path (directives, decls) =
                           end
                       in
 
-                      let member = ClassField (final, name, field_type, compiled_value_opt) in
+                      let member = ClassField (span, final, name, field_type, compiled_value_opt) in
                       let new_map = StringMap.add name (vis, member) member_map in
                       (ctx_after_value, new_map)
                     end

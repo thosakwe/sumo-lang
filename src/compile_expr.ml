@@ -150,6 +150,41 @@ let rec compile_expr context = function
                     in
                     ((emit_error context span error_msg), UnknownType, None)
                 end
+              (* If we find a class, invoke its constructor. *)
+              | TypeSymbol ((Class (_, name, _, _, members) as clazz)) -> begin
+                  (* If there is no constructor, then the arg list must be empty. *)
+                  (* TODO: Also include fields from parent classes *)
+                  let constructor = None in
+                  match constructor with
+                  | None -> begin
+                      match args with
+                      | [_] | _ :: _ ->
+                        let error_msg = 
+                          "The class \"" ^ name ^ "\" has no defined constructor, so no arguments"
+                          ^ " may be passed to its instantiation."
+                        in
+                        ((emit_error context span error_msg), UnknownType, None)
+                      (* Since we are not calling the constructor, simply create the struct instance.
+                       * Find any field with a default value, and pass its value in.
+                       * Prior static analysis will ensure that if there is no constructor, all
+                       * fields have a default value. *)
+                      | _ -> 
+                        let fold_field name (_, member) value_map = match member with
+                          | ClassField (_, _, _, _, value_opt) -> begin 
+                              match value_opt with 
+                              | None -> value_map
+                              | Some value -> StringMap.add name value value_map
+                            end
+                          | _ -> value_map
+                        in
+                        let value_map = StringMap.fold fold_field members StringMap.empty in
+                        let value = StructLiteral (clazz, value_map) in
+                        (context, clazz, Some value) 
+                    end
+                  | Some _ -> 
+                    let error_msg = "TODO: Implement constructor calling" in
+                    ((emit_error context span error_msg), UnknownType, None)
+                end
               | _ as sym ->  
                 let error_msg =
                   "The name \"" ^ name ^ "\" resolves to "
