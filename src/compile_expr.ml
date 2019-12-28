@@ -150,7 +150,7 @@ let rec compile_expr context = function
                     ((emit_error context span error_msg), UnknownType, None)
                 end
               (* If we find a class, invoke its constructor. *)
-              | TypeSymbol ((Class (_, name, _, _, members) as clazz)) -> begin
+              | TypeSymbol ((Class (_, class_name, _, _, members) as clazz)) -> begin
                   (* If there is no constructor, then the arg list must be empty. *)
                   (* TODO: Also include fields from parent classes *)
                   let constructor = None in
@@ -159,7 +159,7 @@ let rec compile_expr context = function
                       match args with
                       | [_] | _ :: _ ->
                         let error_msg = 
-                          "The class \"" ^ name ^ "\" has no defined constructor, so no arguments"
+                          "The class \"" ^ class_name ^ "\" has no defined constructor, so no arguments"
                           ^ " may be passed to its instantiation."
                         in
                         ((emit_error context span error_msg), UnknownType, None)
@@ -412,16 +412,43 @@ let rec compile_expr context = function
           (* If we find a class, it can be either a field, or a getter.
            * TODO: Call getters.
            * TODO: Check fields from parent types. *)
-          | Class (_, _, _, _, members) -> begin
-              let find_field n (_, member) (context, out_typ, out_index, current_index) =
-                if n <> name then
+          | Class (_, class_name, _, _, members) as clazz -> begin
+              let find_field member_name (vis, member) (context, out_typ, out_index, current_index) =
+                if member_name <> name then
                   (context, out_typ, out_index, current_index + 1)
                 else
-                  (* TODO: Check if we have access to the class. *)
-                  match member with
-                  | ClassField (_, _, _, field_type, _) ->  
-                    (context, field_type, current_index, current_index + 1)
-                  | _ -> (context, out_typ, out_index, current_index + 1)
+                  (* Check if we have access to the class. *)
+                  let (can_access, access_error_msg) = match vis with
+                    | Visibility.Public  -> (true, "")
+                    | Visibility.Protected
+                    | Visibility.Private -> begin
+                        let error_msg =
+                          "Cannot access " ^ (Visibility.string_of_visibility vis)
+                          ^ " symbol \"" ^ member_name ^ "\" of class \""
+                          ^ class_name ^ "\" from this context."
+                        in
+
+                        match context.current_class with
+                        | None -> (false, error_msg)
+                        | Some parent_type -> begin
+                            if not (class_extends parent_type clazz) then
+                              (false, error_msg)
+                            else
+                              (true, "")
+                          end
+                      end
+                  in
+
+                  if not can_access then
+                    let new_ctx = emit_error context span access_error_msg in
+                    (new_ctx, out_typ, out_index, current_index + 1)
+                  else 
+                    begin
+                      match member with
+                      | ClassField (_, _, _, field_type, _) ->  
+                        (context, field_type, current_index, current_index + 1)
+                      | _ -> (context, out_typ, out_index, current_index + 1)
+                    end
               in
               let initial_data = (ctx_after_expr, UnknownType, -1, 0) in
               let (ctx_after_find, field_type, field_index, _) =
@@ -430,7 +457,7 @@ let rec compile_expr context = function
               if field_index = -1 then
                 let error_msg =
                   string_of_type expr_type
-                  ^ " has no getter named \"" ^ name ^ "\"."
+                  ^ " has no accessible getter named \"" ^ name ^ "\"."
                 in
                 let new_ctx = emit_error ctx_after_find span error_msg in
                 (new_ctx, UnknownType, None)

@@ -32,6 +32,7 @@ and load_ast_into_universe universe path (directives, decls) =
       scope = builtin_scope;
       universe = default_universe;
       namer = Namer.empty;
+      current_class = None;
     }
   in
 

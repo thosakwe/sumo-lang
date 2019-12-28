@@ -72,3 +72,16 @@ let rec cast_value context span value_opt from_type to_type =
             (ctx_after_fields, Ok (Some coerced_value))
       end
     | _ ->  failure
+
+let rec class_extends parent_type child_type  =
+  match child_type with
+  | Class (_, _, extends_opt, implements, _) ->  begin
+      let all_parents  = match extends_opt with 
+        | None -> implements
+        | Some e -> [e] @ implements
+      in
+      match List.find_opt (class_extends parent_type) all_parents with
+      | None -> false
+      | Some _ -> true
+    end
+  | _ -> child_type = parent_type

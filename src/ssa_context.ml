@@ -8,6 +8,7 @@ type t =
     namer: Namer.t;
     scope: symbol Scope.t;
     universe: universe;
+    current_class: typ option;
   }
 
 (** Shortcut for emitting an error, and returning a new context object. *)
