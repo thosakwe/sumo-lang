@@ -43,22 +43,24 @@ let rec compile_universe module_path errors universe =
              * TODO: Prevent duplicates
              *
              * The only exception is "external" functions. *)
-        let forward_decl out_list ext params returns llvm_name prelude_params =
-          let _ = path, out_list, ext in
-          (* if (module_path == path) && (not ext) then begin *)
-          (* if false then begin
-             let _ = path, ext in
-             (* print_endline module_path;
+        let forward_decl ext params returns llvm_name prelude_params =
+          (* let _ = path, out_list, ext in *)
+          if (module_path == path) && (not ext) then begin
+            (* if false then begin *)
+            let _ = path, ext in
+            (* print_endline module_path;
                print_endline path;
                print_endline (string_of_bool ext); *)
-             out_list
-             end
-             else *)
-          let llvm_function_type =
-            compile_function_signature llvm_context params returns prelude_params
-          in
-          let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
-          (name, value)
+            None
+          end
+          else begin
+            let llvm_function_type =
+              compile_function_signature llvm_context params returns prelude_params
+            in
+            let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
+            let pair = (name, value) in
+            Some pair
+          end
         in
 
         match sym with
@@ -66,9 +68,11 @@ let rec compile_universe module_path errors universe =
           let llvm_type = compile_type llvm_context typ in
           let value = Llvm.declare_global llvm_type qualified_name llvm_module in
           out_list @ [(name, value)]
-        | FuncSymbol (ext, llvm_name, params, returns, _) ->
-          let pair = forward_decl out_list ext params returns llvm_name [] in
-          out_list @ [pair]
+        | FuncSymbol (ext, llvm_name, params, returns, _) -> begin
+            match forward_decl ext params returns llvm_name [] with
+            | None -> out_list
+            | Some pair -> out_list @ [pair]
+          end
         | ParamSymbol _ -> out_list
         | ImportedSymbol _ -> out_list
         | TypeSymbol t -> begin 
@@ -80,15 +84,17 @@ let rec compile_universe module_path errors universe =
             | Class (_, class_name, _, _, members, vtable_indices) -> begin
                 let fold_member member_name (_, member) (pair_list, pointer_map) = 
                   match member with
-                  | ClassFunc (_, llvm_name, params, returns, _) ->
-                    let this_type = compile_type llvm_context t in
-                    let prelude_params = [this_type] in
-                    let (pair_name, llvm_value) =
-                      forward_decl pair_list false params returns llvm_name prelude_params
-                    in
-                    let index = StringMap.find member_name vtable_indices in
-                    let new_pointer_map = IntMap.add index llvm_value pointer_map in
-                    ((pair_list @ [(pair_name, llvm_value)]), new_pointer_map)
+                  | ClassFunc (_, llvm_name, params, returns, _) -> begin
+                      let this_type = compile_type llvm_context t in
+                      let prelude_params = [this_type] in
+                      match forward_decl false params returns llvm_name prelude_params with
+                      | None -> (pair_list, pointer_map)
+                      | Some (pair_name, llvm_value) -> begin
+                          let index = StringMap.find member_name vtable_indices in
+                          let new_pointer_map = IntMap.add index llvm_value pointer_map in
+                          ((pair_list @ [(pair_name, llvm_value)]), new_pointer_map)
+                        end
+                    end
                   | _ -> (pair_list, pointer_map)
                 in
                 let (pairs_after_members, pointer_map) =
