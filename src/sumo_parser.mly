@@ -79,7 +79,7 @@ extends:
   | COLON v = separated_list(COMMA, typ) { v }
 
 class_member:
-  | v = vis name = class_func_name id s = func_sig b = block
+  | v = vis name = class_func_name s = func_sig b = block
     {
       (* If the body is empty, add a "return" *)
       let nonempty_body =
