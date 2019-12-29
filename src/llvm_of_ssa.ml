@@ -45,8 +45,8 @@ let rec compile_universe module_path errors universe =
              * The only exception is "external" functions. *)
         let forward_decl ext params returns llvm_name prelude_params =
           (* let _ = path, out_list, ext in *)
-          if (module_path == path) && (not ext) then begin
-            (* if false then begin *)
+          (* if (module_path == path) && (not ext) then begin *)
+          if false then begin
             let _ = path, ext in
             (* print_endline module_path;
                print_endline path;
@@ -57,7 +57,7 @@ let rec compile_universe module_path errors universe =
             let llvm_function_type =
               compile_function_signature llvm_context params returns prelude_params
             in
-            let value = Llvm.declare_function llvm_name llvm_function_type llvm_module in
+            let value = Llvm.define_function llvm_name llvm_function_type llvm_module in
             let pair = (name, value) in
             Some pair
           end
@@ -85,7 +85,6 @@ let rec compile_universe module_path errors universe =
                 let fold_member member_name (_, member) (pair_list, pointer_map) = 
                   match member with
                   | ClassFunc (_, llvm_name, params, returns, _) -> begin
-                      (* TODO: Move vtable logic to after class functions are compiled. *)
                       let this_type = compile_type llvm_context t in
                       let prelude_params = [this_type] in
                       match forward_decl false params returns llvm_name prelude_params with
@@ -161,7 +160,12 @@ let rec compile_universe module_path errors universe =
 
 and compile_function context (name, params, returns, instrs) =
   let llvm_function_type = compile_function_signature context.llvm_context params returns [] in
-  let func = Llvm.define_function name llvm_function_type context.llvm_module in
+
+  (* If we have already declared the function, don't redeclare it *)
+  let func = match Llvm.lookup_function name context.llvm_module with
+    | Some value -> value
+    | None -> Llvm.define_function name llvm_function_type context.llvm_module
+  in
 
   (* Create a new scope, with the function name and params injected. *)
   let new_scope_map =

@@ -313,7 +313,12 @@ and load_ast_into_universe universe path (directives, decls) =
                   initial_context
                 in
 
-                let func = Ast.ConcreteFunc func_body in
+                (* We need to generate the function with the properly-qualified name. *)
+                let qualified_func_body =
+                  let (span, name, fsig, block) = func_body in
+                  (span, (Sema.qualify [class_name; name]), fsig, block)
+                in
+                let func = Ast.ConcreteFunc qualified_func_body in
                 let (new_ctx, new_out_list, returns_opt) = compile_function (child_context, out_list) func in
                 let result_ctx = match returns_opt with
                   | None | Some VoidType -> new_ctx
