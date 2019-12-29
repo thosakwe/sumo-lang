@@ -106,8 +106,8 @@ let rec compile_universe module_path errors universe =
                   |> Llvm.pointer_type
                 in
                 let int_ptr_ptr = Llvm.pointer_type int_ptr in
-                let vtable_array = Llvm.const_array (int_ptr) (Array.of_list vtable_values) in
-                let vtable_global = Llvm.define_global class_vtable_name vtable_array llvm_module in
+                let vtable_struct = Llvm.const_struct llvm_context (Array.of_list vtable_values) in
+                let vtable_global = Llvm.define_global class_vtable_name vtable_struct llvm_module in
                 let vtable_cast =
                   Llvm.const_pointercast vtable_global int_ptr_ptr
                 in
