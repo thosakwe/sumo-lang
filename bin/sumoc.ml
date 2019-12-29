@@ -5,6 +5,7 @@ let emit_asm = ref false
 let emit_llvm = ref false
 let in_file = ref ""
 let out_file = ref ""
+let target = ref ""
 let optimization_level = ref 0
 let verbose = ref false
 
@@ -16,6 +17,7 @@ let set_optimization_level v () =
 
 let specs = [
   ("-c", Arg.Set compile_only, "Compile only; do not link. Produces an object file.");
+  ("-emit-llvm", Arg.Set emit_llvm, "Emit LLVM IR.");
   ("-o", Arg.Set_string out_file, "The file to be created.");
   ("-O", Arg.Set_int optimization_level, "The optimization level for Assembly/object files.");
   ("-O0", Arg.Unit (set_optimization_level 0), "Shorthand for -O=0.");
@@ -23,7 +25,7 @@ let specs = [
   ("-O2", Arg.Unit (set_optimization_level 2), "Shorthand for -O=2.");
   ("-O3", Arg.Unit (set_optimization_level 3), "Shorthand for -O=3.");
   ("-S", Arg.Set emit_asm, "Emit Assembly code.");
-  ("-emit-llvm", Arg.Set emit_llvm, "Emit LLVM IR.");
+  ("-target", Arg.Set_string target, "Target triple for the output machine.");
   ("-verbose", Arg.Set verbose, "Produce verbose output, including SSA form.");
 ]
 
@@ -82,6 +84,7 @@ let () =
             let llc_args = [
               "llc";
               ("-o " ^ output_path);
+              ("-mtriple=" ^ !target);
               ("-O=" ^ (string_of_int !optimization_level));
               ("-filetype=" ^ filetype)
             ]
