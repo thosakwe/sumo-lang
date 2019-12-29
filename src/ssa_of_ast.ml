@@ -301,13 +301,20 @@ and load_ast_into_universe universe path (directives, decls) =
      * TODO: Compile operators. *)
     | Ast.ClassDecl (_, _, _, name, _, _) -> begin
         match Scope.find_opt name new_scope with
-        | Some (TypeSymbol (Class (_, class_name, _, _, members, _))) -> begin
+        | Some (TypeSymbol (Class (_, class_name, _, _, members, _) as clazz)) -> begin
             let fold_member member_name (_, member) (context, out_list) = 
               match member with
               | ClassFunc (_, qualified_name, params, returns, (Ast.ClassFunc (span, _, func_body) )) -> 
                 let _ = class_name, member_name, qualified_name, params, returns in
+
+                (* TODO: Create a new context with the class injected, as well as members. *)
+                let child_context =
+                  let initial_context = { context with current_class = Some clazz } in
+                  initial_context
+                in
+
                 let func = Ast.ConcreteFunc func_body in
-                let (new_ctx, new_out_list, returns_opt) = compile_function (context, out_list) func in
+                let (new_ctx, new_out_list, returns_opt) = compile_function (child_context, out_list) func in
                 let result_ctx = match returns_opt with
                   | None | Some VoidType -> new_ctx
                   | Some returns -> 
