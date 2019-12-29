@@ -365,6 +365,7 @@ let rec compile_expr context = function
                 (ctx_after_cast, BoolType, Some value)
             end
           | _ ->
+            (* TODO: Search for operators within classes, and emit a Ast.Call. *)
             let error_msg =
               "The type "
               ^ string_of_type lhs_type
