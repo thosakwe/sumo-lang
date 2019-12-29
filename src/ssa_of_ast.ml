@@ -278,6 +278,11 @@ and load_ast_into_universe universe path (directives, decls) =
   let new_context = {ctx_after_symbols with scope = new_scope; universe = new_universe } in
 
   (* Compile them, add them to the module, and return the universe. *)
+  let missing_return returns =
+    "This function is declared to return "
+    ^ (string_of_type returns)
+    ^ ", but doesn't return a value through all paths."
+  in
   let compile_decl (context, out_list) = function
     | Ast.FuncDecl (span, _, func) -> begin
         let (new_ctx, new_out_list, returns_opt) = compile_function (context, out_list) func in
@@ -287,18 +292,40 @@ and load_ast_into_universe universe path (directives, decls) =
             if new_ctx.block_is_dead then
               new_ctx
             else
-              let error_message =
-                "This function is declared to return "
-                ^ (string_of_type returns)
-                ^ ", but doesn't return a value through all paths."
-              in
+              let error_message = missing_return returns in
               emit_error new_ctx span error_message
         in
         ({ result_ctx with block_is_dead = false }, new_out_list)
       end
+    (* Find the class symbol we have declared in new_scope, and compile its member functions.
+     * TODO: Compile operators. *)
+    | Ast.ClassDecl (_, _, _, name, _, _) -> begin
+        match Scope.find_opt name new_scope with
+        | Some (TypeSymbol (Class (_, class_name, _, _, members, _))) -> begin
+            let fold_member member_name (_, member) (context, out_list) = 
+              match member with
+              | ClassFunc (_, qualified_name, params, returns, (Ast.ClassFunc (span, _, func_body) )) -> 
+                let _ = class_name, member_name, qualified_name, params, returns in
+                let func = Ast.ConcreteFunc func_body in
+                let (new_ctx, new_out_list, returns_opt) = compile_function (context, out_list) func in
+                let result_ctx = match returns_opt with
+                  | None | Some VoidType -> new_ctx
+                  | Some returns -> 
+                    if new_ctx.block_is_dead then
+                      new_ctx
+                    else
+                      let error_message = missing_return returns in
+                      emit_error new_ctx span error_message
+                in
+                ({ result_ctx with block_is_dead = false }, new_out_list)
+              | _ -> (context, out_list)
+            in
+            StringMap.fold fold_member members (context, out_list)
+          end
+        | _ -> (context, out_list)
+      end
     (* We have already compiled types. *)
     | Ast.TypeDecl _ -> (context, out_list)
-    | Ast.ClassDecl _ -> (context, out_list)
     | Ast.DummyDecl -> (context, out_list)
     (* | _ -> (context, out_list) *)
   in

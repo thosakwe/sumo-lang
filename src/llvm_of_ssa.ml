@@ -85,6 +85,7 @@ let rec compile_universe module_path errors universe =
                 let fold_member member_name (_, member) (pair_list, pointer_map) = 
                   match member with
                   | ClassFunc (_, llvm_name, params, returns, _) -> begin
+                      (* TODO: Move vtable logic to after class functions are compiled. *)
                       let this_type = compile_type llvm_context t in
                       let prelude_params = [this_type] in
                       match forward_decl false params returns llvm_name prelude_params with
