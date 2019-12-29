@@ -78,6 +78,7 @@ rule read = parse
   | "hide" { HIDE }
   | "if" { IF }
   | "import" { IMPORT }
+  | "operator" { OPERATOR }
   | "public" { VIS Visibility.Public }
   | "protected" { VIS Visibility.Protected }
   | "private" { VIS Visibility.Private }

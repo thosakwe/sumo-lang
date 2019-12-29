@@ -1,7 +1,7 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS SEMI QUESTION
 %token DO ELSE EXTERNAL FINAL FN FOR HIDE IF IMPORT RETURN
-%token SHOW THIS TYPE VAR WHILE ABSTRACT CLASS
+%token SHOW THIS TYPE VAR WHILE ABSTRACT CLASS OPERATOR
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
 %token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR INCR DECR BOOL_NOT BW_NOT
@@ -79,7 +79,7 @@ extends:
   | COLON v = separated_list(COMMA, typ) { v }
 
 class_member:
-  | v = vis FN name = id s = func_sig b = block
+  | v = vis name = class_func_name id s = func_sig b = block
     {
       (* If the body is empty, add a "return" *)
       let nonempty_body =
@@ -96,6 +96,30 @@ class_member:
     {
       Ast.ClassField ($loc, m, n, t, v)
     }
+
+class_func_name:
+  | FN v = id { v }
+  | OPERATOR LT { "<" }
+  | OPERATOR LTE { "<=" }
+  | OPERATOR GT { ">" }
+  | OPERATOR GTE { ">=" }
+  | OPERATOR TIMES { "*" }
+  | OPERATOR DIV { "/" }
+  | OPERATOR MOD { "%" }
+  | OPERATOR BW_AND { "&" }
+  | OPERATOR BW_XOR { "^" }
+  | OPERATOR BW_OR { "|" }
+  | OPERATOR PLUS { "+" }
+  | OPERATOR MINUS { "-" }
+  | OPERATOR SHL { "<<" }
+  | OPERATOR SHR { ">>" }
+  | OPERATOR BW_NOT { "~" }
+  | OPERATOR BOOL_EQ { "==" }
+  | OPERATOR BOOL_NEQ { "!=" }
+  | OPERATOR BOOL_AND { "&&" }
+  | OPERATOR BOOL_OR { "||" }
+
+/* TODO: Unary op overrides */
 
 cm_mod:
   | v = VIS { Ast.MemberVisibility ($loc, v) }
