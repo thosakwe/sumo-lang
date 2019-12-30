@@ -37,6 +37,7 @@ and typ =
   | OptionalType of typ
   | StructType of typ StringMap.t
   | VariantType of variant StringMap.t
+  | TypeAlias of string * typ
   | UnknownType
 and variant = string * (typ list)
 and value =
@@ -177,6 +178,8 @@ and string_of_type = function
     in
     let var_str = String.concat " | " (StringMap.fold fold_variant variants []) in
     "var " ^ var_str
+  | TypeAlias (name, inner) ->
+    "(alias " ^ name ^ " = " ^ (string_of_type inner) ^ ")"
 and string_of_value = function
   | IntLiteral v -> string_of_int v
   | DoubleLiteral v -> string_of_float v

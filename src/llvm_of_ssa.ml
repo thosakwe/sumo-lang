@@ -551,6 +551,7 @@ and compile_function_signature llvm_context params returns prelude_params =
   Llvm.function_type llvm_returns (Array.of_list all_params)
 
 and compile_type context = function
+  | TypeAlias (_, inner) -> compile_type context inner
   | IntType -> Llvm.i64_type context
   | DoubleType -> Llvm.double_type context
   | BoolType -> Llvm.i1_type context
