@@ -8,7 +8,7 @@ call_user_function.exe var_assign_cast.exe \
 return_int_arithmetic.exe return_arith_assign.exe return_shift.exe \
 return_bitwise.exe return_bool.exe simple_max.exe while.exe for_loop.exe \
 return_optional_none.exe return_optional_some.exe struct.exe \
-optional_struct.exe struct_cast.exe import.exe class_basic.exe class_method.exe
+optional_struct.exe struct_cast.exe import.exe
 
 %.exe: %.o
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $^ $(LDLIBS)

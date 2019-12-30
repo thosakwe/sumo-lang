@@ -75,54 +75,7 @@ let rec compile_universe module_path errors universe =
           end
         | ParamSymbol _ -> out_list
         | ImportedSymbol _ -> out_list
-        | TypeSymbol t -> begin 
-            (* If we get a class, also forward declare its functions.
-             * In addition, declare its vtable as a constant. 
-             * Vtable items must be in order, but vtable_indices is a string->int map.
-             * We can reverse the map, and then fold them into a list of pointers. *)
-            match t with
-            | Class (_, class_name, _, _, members, vtable_indices) -> begin
-                let fold_member member_name (_, member) (pair_list, pointer_map) = 
-                  match member with
-                  | ClassFunc (_, llvm_name, params, returns, _) -> begin
-                      let this_type = compile_type llvm_context t in
-                      let prelude_params = [this_type] in
-                      match forward_decl false params returns llvm_name prelude_params with
-                      | None -> (pair_list, pointer_map)
-                      | Some (pair_name, llvm_value) -> begin
-                          let index = StringMap.find member_name vtable_indices in
-                          let new_pointer_map = IntMap.add index llvm_value pointer_map in
-                          ((pair_list @ [(pair_name, llvm_value)]), new_pointer_map)
-                        end
-                    end
-                  | _ -> (pair_list, pointer_map)
-                in
-                let (pairs_after_members, pointer_map) =
-                  StringMap.fold fold_member members (out_list, IntMap.empty) 
-                in
-
-                (* Now that we have a pointer map, turn it to a list, and declare a global array. *)
-                let class_vtable_name = (vtable_name class_name) in
-                let vtable_values = 
-                  let fold_pair _ value out_list = out_list @ [value] in
-                  IntMap.fold fold_pair pointer_map []
-                in
-                let int_ptr =
-                  Llvm.i8_type llvm_context
-                  |> Llvm.pointer_type
-                in
-                let int_ptr_ptr = Llvm.pointer_type int_ptr in
-                let vtable_struct = Llvm.const_struct llvm_context (Array.of_list vtable_values) in
-                let vtable_global = Llvm.define_global class_vtable_name vtable_struct llvm_module in
-                let vtable_cast =
-                  Llvm.const_pointercast vtable_global int_ptr_ptr
-                in
-
-                pairs_after_members @ [(class_vtable_name, vtable_cast)]
-              end
-            | _ -> out_list 
-          end
-        | VtableSymbol _ -> out_list
+        | TypeSymbol _ -> out_list
       in
       List.fold_left llvm_of_pair [] pairs
     in
@@ -522,46 +475,6 @@ and compile_value context span value =
         in
         (new_ctx, Llvm.build_call target (Array.of_list llvm_args) return_name new_ctx.builder)
     end
-  | VtableCall (returns, _, index, args) -> begin
-      (* let struct_type = compile_struct_type context.llvm_context clazz in *)
-      (* Yes, this is bad style. No, I do not care (yet!). *)
-      let lhs = List.hd args in
-      let (ctx_after_lhs, llvm_lhs) = compile_value context span lhs in
-      let vtable_ptr = Llvm.build_struct_gep llvm_lhs 1 "load_vtable_ptr" ctx_after_lhs.builder in
-      let vtable = Llvm.build_load vtable_ptr "load_vtable" ctx_after_lhs.builder in
-
-      (* Compile the arguments. *)
-      let (ctx_after_args, llvm_args) =
-        let compile_arg (context, out_list) arg =
-          let (new_ctx, value) = compile_value context span arg in
-          (new_ctx, out_list @ [value])
-        in
-        List.fold_left compile_arg (ctx_after_lhs, []) args
-      in
-
-      (* We need to cast the vtable function pointer into the appropriate kind of
-       * function pointer. This can be done by building an llvm_function_type, and then
-       * casting to a pointer of said type. *)
-      let raw_func_ptr = 
-        let i64_type = Llvm.i64_type ctx_after_args.llvm_context in
-        let llvm_index = Llvm.const_int i64_type index in
-        Llvm.build_gep vtable [| llvm_index |] "raw_vtable_func_ptr" ctx_after_args.builder 
-      in
-
-      let llvm_returns = compile_type ctx_after_args.llvm_context returns in
-      let llvm_params = Array.of_list (List.map Llvm.type_of llvm_args) in
-      let desired_function_type = Llvm.function_type llvm_returns llvm_params in
-      let func_ptr_type = Llvm.pointer_type desired_function_type in
-      let coerced_func_ptr = 
-        let call_name = "coerced_vtable_func_ptr" in
-        Llvm.build_pointercast raw_func_ptr func_ptr_type call_name ctx_after_args.builder
-      in
-
-      let result = 
-        Llvm.build_call coerced_func_ptr (Array.of_list llvm_args) "vtable_call" ctx_after_args.builder
-      in
-      (ctx_after_args, result)
-    end
   | OptionalSome (typ, _)
   | OptionalNone typ -> begin
       let bool_type = compile_type context.llvm_context BoolType in
@@ -606,44 +519,12 @@ and compile_value context span value =
         ()
       in
 
-      (* Before inserting the object's fields, insert the RTTI hash, followed by the
-       * pointer to the vtable. *)
-      let ctx_after_rtti =
-        begin
-          match struct_type with
-          | Class (_, class_name, _, _, _, _) -> 
-            let vtable_name = (vtable_name class_name) in
-            if not (Scope.mem vtable_name context.scope) then
-              let error_msg = 
-                "LLVM compiler error: No v-table symbol exists"
-                ^ " for class \"" ^ class_name ^ "\"."
-              in
-              let new_ctx = emit_error context span error_msg in
-              new_ctx
-            else
-              let i64_type = Llvm.i64_type context.llvm_context in
-              let rtti_hash = Utils.djb2 class_name in
-              let llvm_hash = Llvm.const_int i64_type rtti_hash in
-              emit_field "@rtti_hash" llvm_hash context 0;
-
-              let vtable = Scope.find vtable_name context.scope in
-              let vtable_ptr = vtable in
-              emit_field "@vtable" vtable_ptr context 1;
-              context
-          | _ -> context
-        end
-      in
-
       let fold_field name value (context, index) =
         let (new_ctx, llvm_value) = compile_value context span value in
         emit_field name llvm_value new_ctx index;
         (new_ctx, index + 1)
       in
-      let initial_index = match struct_type with
-        | Class _ -> 2
-        | _ -> 0
-      in
-      let (new_ctx, _) = StringMap.fold fold_field fields (ctx_after_rtti, initial_index) in
+      let (new_ctx, _) = StringMap.fold fold_field fields (context, 0) in
       (new_ctx, struct_pointer)
     end
   | (GetElement (_, lhs, index) as instr)
@@ -682,13 +563,6 @@ and compile_type context = function
   | StructType (fields) ->
     let struct_type = compile_struct_type context (StructType fields) in
     Llvm.pointer_type struct_type
-  (* Compile a class by computing the underlying struct.
-   * TODO: Include vtable, RTTI, etc.
-   *TODO: Include fields from parents *)
-  | Class _ as self -> begin
-      let struct_type = compile_struct_type context self in
-      Llvm.pointer_type struct_type
-    end
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
 
@@ -697,30 +571,8 @@ and compile_struct_type context = function
     let fold_field _ typ out_list =
       out_list @ [compile_type context typ]
     in
-
     let llvm_fields = StringMap.fold fold_field fields [] in
     Llvm.struct_type context (Array.of_list llvm_fields)
-
-  | Class (_, _, _, _, members, _) -> begin
-      let fold_member _ (_, member) type_list =
-        match member with
-        | ClassField (_, _, _, typ, _) ->
-          let llvm_type = compile_type context typ in
-          (* ignore llvm_type; *)
-          type_list @ [llvm_type]
-        (* type_list *)
-        | _ -> type_list
-      in
-      (* Class instances carry a u64 rtti hash, and a pointer to a vtable. *)
-      let global_fields = 
-        [
-          Llvm.i64_type context;
-          Llvm.pointer_type (Llvm.pointer_type (Llvm.i8_type context));
-        ]
-      in
-      let llvm_fields = StringMap.fold fold_member members global_fields in
-      Llvm.struct_type context (Array.of_list llvm_fields)
-    end
   (* Note: This case should never be reached. *)
   | _ -> Llvm.void_type context
 

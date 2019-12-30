@@ -34,13 +34,7 @@ and compile_concrete_function context out_list (span, name, fsig, stmts) =
     let qualified = Sema.qualify_function_name path name  in
 
     (* Compile the function signature, so we can get param+return types *)
-    let (ctx_after_sig, raw_params, returns) = compile_function_signature context fsig in
-
-    (* If we are within a class, also inject the current class. *)
-    let params = match context.current_class with
-      | Some (Class _ as clazz) -> [("this", clazz)] @ raw_params
-      | _ -> raw_params
-    in
+    let (ctx_after_sig, params, returns) = compile_function_signature context fsig in
 
     (* Make a new scope+context, with all params injected as values. *)
     let ctx_with_params =

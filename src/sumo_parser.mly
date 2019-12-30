@@ -58,17 +58,6 @@ import_modifier:
 decl:
   | v = vis f = func { Ast.FuncDecl ($loc, v, f) }
   | v = vis TYPE n = id EQUALS t = typ { Ast.TypeDecl ($loc, v, n, t) }
-  | v = vis;
-    a = abstract;
-    CLASS;
-    n = id;
-    e = extends;
-    LCURLY;
-    m = list(class_member);
-    RCURLY;
-    {
-      Ast.ClassDecl ($loc, v, a, n, e, m)
-    }
 
 abstract:
   | { false }
@@ -77,53 +66,6 @@ abstract:
 extends:
   | { [] }
   | COLON v = separated_list(COMMA, typ) { v }
-
-class_member:
-  | v = vis name = class_func_name s = func_sig b = block
-    {
-      (* If the body is empty, add a "return" *)
-      let nonempty_body =
-        match b with
-        | [] -> [ Ast.Return ($loc(b), None) ]
-        | _ -> b
-      in
-      Ast.ClassFunc ($loc, v, ($loc, name, s, nonempty_body))
-    }
-  | m = list(cm_mod)
-    n = id
-    t = option(m_type)
-    v = option(m_expr)
-    {
-      Ast.ClassField ($loc, m, n, t, v)
-    }
-
-class_func_name:
-  | FN v = id { v }
-  | OPERATOR LT { "<" }
-  | OPERATOR LTE { "<=" }
-  | OPERATOR GT { ">" }
-  | OPERATOR GTE { ">=" }
-  | OPERATOR TIMES { "*" }
-  | OPERATOR DIV { "/" }
-  | OPERATOR MOD { "%" }
-  | OPERATOR BW_AND { "&" }
-  | OPERATOR BW_XOR { "^" }
-  | OPERATOR BW_OR { "|" }
-  | OPERATOR PLUS { "+" }
-  | OPERATOR MINUS { "-" }
-  | OPERATOR SHL { "<<" }
-  | OPERATOR SHR { ">>" }
-  | OPERATOR BW_NOT { "~" }
-  | OPERATOR BOOL_EQ { "==" }
-  | OPERATOR BOOL_NEQ { "!=" }
-  | OPERATOR BOOL_AND { "&&" }
-  | OPERATOR BOOL_OR { "||" }
-
-/* TODO: Unary op overrides */
-
-cm_mod:
-  | v = VIS { Ast.MemberVisibility ($loc, v) }
-  | FINAL { Ast.MemberFinality $loc }
 
 m_type: COLON t = typ { t }
 

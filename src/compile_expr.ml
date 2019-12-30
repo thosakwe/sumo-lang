@@ -86,16 +86,7 @@ let rec compile_expr context = function
         match sym with
 
         (* If we find a function, then verify the number of args. *)
-        | VtableSymbol (_, _, _, params, returns)
-        | FuncSymbol (_, _, params, returns, _) -> begin
-            let func_name = match sym with
-              | FuncSymbol (_, n, _, _, _) -> n
-              | VtableSymbol (Class (_, class_name, _, _, _, _), _, n, _, _) -> begin
-                  class_name ^ "." ^ n
-                end
-              | _ -> "<unsupported>"
-            in
-
+        | FuncSymbol (_, func_name, params, returns, _) -> begin
             if (List.length actual_args) != (List.length params) then 
               let error_msg =
                 "The function \"" ^ func_name ^ "\" expects "
@@ -135,11 +126,7 @@ let rec compile_expr context = function
                 (new_ctx, UnknownType, None)
               else
                 (* Everything is okay, emit the call. *)
-                let value = match sym with
-                  | VtableSymbol (clazz, index, _, _, returns) -> 
-                    VtableCall (returns, clazz, index, compiled_args)
-                  | _ -> FunctionCall (returns, func_name, compiled_args) 
-                in
+                let value = FunctionCall (returns, func_name, compiled_args) in
                 ({ new_ctx with block_is_dead = context.block_is_dead }, returns, Some value)
           end
         | ImportedSymbol (module_ref, name) as sym -> begin
@@ -152,42 +139,6 @@ let rec compile_expr context = function
                 ^ (string_of_symbol sym)
                 ^ " in this context."
               in
-              ((emit_error context span error_msg), UnknownType, None)
-          end
-        (* If we find a class, invoke its constructor. *)
-        | TypeSymbol ((Class (_, class_name, _, _, members, _) as clazz)) -> begin
-            (* If there is no constructor, then the arg list must be empty. *)
-            (* TODO: Also include fields from parent classes *)
-            let constructor = None in
-            match constructor with
-            | None -> begin
-                match actual_args with
-                | [_] | _ :: _ ->
-                  let error_msg = 
-                    "The class \"" ^ class_name ^ "\" has no defined constructor, so no arguments"
-                    ^ " may be passed to its instantiation."
-                  in
-                  ((emit_error context span error_msg), UnknownType, None)
-                (* Since we are not calling the constructor, simply create the struct instance.
-                 * Find any field with a default value, and pass its value in.
-                 * Prior static analysis will ensure that if there is no constructor, all
-                 * fields have a default value. *)
-                | _ -> 
-                  let fold_field name (_, member) value_map = match member with
-                    | ClassField (_, _, _, _, value_opt) -> begin 
-                        match value_opt with 
-                        | None -> value_map
-                        | Some value -> StringMap.add name value value_map
-                      end
-                    | _ -> value_map
-                  in
-                  (* TODO: Pass rtti hash and vtable, make separate ClassLiteral *)
-                  let value_map = StringMap.fold fold_field members StringMap.empty in
-                  let value = StructLiteral (clazz, value_map) in
-                  (context, clazz, Some value) 
-              end
-            | Some _ -> 
-              let error_msg = "TODO: Implement constructor calling" in
               ((emit_error context span error_msg), UnknownType, None)
           end
         | _ as sym ->  
@@ -209,77 +160,6 @@ let rec compile_expr context = function
             (new_ctx, UnknownType, None)
           else
             invoke_symbol [] (Scope.find name context.scope)
-        end
-      (* If we get instance.x(...), we want to compile it into a v-table lookup, and then
-       * create an IndirectCall.
-       * Ultimately, we have to also pass in a pointer to the class as the first argument. *)
-      | Ast.GetField (span, lhs, member_name) -> begin
-          (* Ensure that lhs is an instance of some class. If so, try to find a corresponding
-           * method, with the correct access for this context. If all is well, fabricate a
-           * v-table call. *)
-          let (_, lhs_type, _) = compile_expr context lhs in
-          let ctx_after_lhs = context in
-          match lhs_type with
-          (* TODO: Search for matching method in parent classes.
-           * TODO: Emit method calls as v-table lookups. *)
-          | Class (_, class_name, _, _, members, vtable) as clazz -> begin
-              match StringMap.find_opt member_name members with
-              | None -> 
-                let error_msg = 
-                  "The class \"" ^ class_name ^ "\" has no method named \""
-                  ^ member_name ^ "\"."
-                in
-                let new_ctx = emit_error ctx_after_lhs span error_msg in
-                (new_ctx, UnknownType, None)
-              | Some (vis, ClassFunc (_, func_name, params, returns, _)) -> begin 
-                  (* Check if we have access to the class. *)
-                  (* TODO: Unify this logic *)
-                  let (can_access, access_error_msg) = match vis with
-                    | Visibility.Public  -> (true, "")
-                    | Visibility.Protected
-                    | Visibility.Private -> begin
-                        let error_msg =
-                          "Cannot access " ^ (Visibility.string_of_visibility vis)
-                          ^ " symbol \"" ^ member_name ^ "\" of class \""
-                          ^ class_name ^ "\" from this context."
-                        in
-
-                        match ctx_after_lhs.current_class with
-                        | None -> (false, error_msg)
-                        | Some parent_type -> begin
-                            if not (class_extends parent_type clazz) then
-                              (false, error_msg)
-                            else
-                              (true, "")
-                          end
-                      end
-                  in
-
-                  if not can_access then
-                    let new_ctx = emit_error ctx_after_lhs span access_error_msg in
-                    (new_ctx, UnknownType, None)
-                  else begin
-                    (* Emit an IndirectCall to the vtable pointer. We want to reuse logic, though.
-                     * So create a VtableSymbol. *)
-                    let vtable_index = StringMap.find member_name vtable in
-                    let new_params = [("this", clazz)] @ params in
-                    let new_symbol = VtableSymbol (clazz, vtable_index, func_name, new_params, returns) in
-                    let (new_ctx, out_type, value_opt) = invoke_symbol [lhs] new_symbol in
-                    (new_ctx, out_type, value_opt)
-                  end
-                end
-              | _ -> 
-                let error_msg = 
-                  "The class \"" ^ class_name ^ "\" has a member named \""
-                  ^ member_name ^ "\", but it is not a method."
-                in
-                let new_ctx = emit_error context span error_msg in
-                (new_ctx, UnknownType, None)
-            end
-          | _ ->
-            let error_msg = "Only the fields of classes may be invoked as methods." in
-            let new_ctx = emit_error context span error_msg in
-            (new_ctx, UnknownType, None)
         end
       | _ ->
         let error_msg = "Only top-level symbols and class members may be called as functions." in
@@ -491,62 +371,6 @@ let rec compile_expr context = function
                 let error_msg =
                   string_of_type (StructType field_types)
                   ^ " has no getter named \"" ^ name ^ "\"."
-                in
-                let new_ctx = emit_error ctx_after_find span error_msg in
-                (new_ctx, UnknownType, None)
-              else
-                let value = GetElement (field_type, lhs, field_index) in
-                (ctx_after_find, field_type, Some value)
-            end
-          (* If we find a class, it can be either a field, or a getter.
-           * TODO: Call getters.
-           * TODO: Check fields from parent types. *)
-          | Class (_, class_name, _, _, members, _) as clazz -> begin
-              let find_field member_name (vis, member) (context, out_typ, out_index, current_index) =
-                if member_name <> name then
-                  (context, out_typ, out_index, current_index + 1)
-                else
-                  (* Check if we have access to the class. *)
-                  let (can_access, access_error_msg) = match vis with
-                    | Visibility.Public  -> (true, "")
-                    | Visibility.Protected
-                    | Visibility.Private -> begin
-                        let error_msg =
-                          "Cannot access " ^ (Visibility.string_of_visibility vis)
-                          ^ " symbol \"" ^ member_name ^ "\" of class \""
-                          ^ class_name ^ "\" from this context."
-                        in
-
-                        match context.current_class with
-                        | None -> (false, error_msg)
-                        | Some parent_type -> begin
-                            if not (class_extends parent_type clazz) then
-                              (false, error_msg)
-                            else
-                              (true, "")
-                          end
-                      end
-                  in
-
-                  if not can_access then
-                    let new_ctx = emit_error context span access_error_msg in
-                    (new_ctx, out_typ, out_index, current_index + 1)
-                  else 
-                    begin
-                      match member with
-                      | ClassField (_, _, _, field_type, _) ->  
-                        (context, field_type, current_index, current_index + 1)
-                      | _ -> (context, out_typ, out_index, current_index + 1)
-                    end
-              in
-              let initial_data = (ctx_after_expr, UnknownType, -1, 2) in
-              let (ctx_after_find, field_type, field_index, _) =
-                StringMap.fold find_field members initial_data
-              in
-              if field_index = -1 then
-                let error_msg =
-                  string_of_type expr_type
-                  ^ " has no accessible getter named \"" ^ name ^ "\"."
                 in
                 let new_ctx = emit_error ctx_after_find span error_msg in
                 (new_ctx, UnknownType, None)

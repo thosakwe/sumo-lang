@@ -1,6 +1,4 @@
-open Cast_value
 open Compile_function
-open Compile_expr
 open Compile_type
 open Ssa
 open Ssa_context
@@ -129,102 +127,6 @@ and load_ast_into_universe universe path (directives, decls) =
             let new_scope = Scope.replace name symbol context.scope in
             ({ new_ctx with scope = new_scope }, pair_list @ [pair])
           end
-        (* If we visit a class, we need to create its members. *)
-        (* TODO: Create fields, functions *)
-        | Ast.ClassDecl ((_, vis, abstract, class_name, _, members)) ->
-          (* Read all modifiers to ensure we don't declare duplicate visibility. *)
-          let fold_member_modifier (context, name, final, vis_opt) = function
-            | Ast.MemberFinality _ -> (context, name, true, vis_opt)
-            | Ast.MemberVisibility (span, vis) -> begin 
-                match vis_opt with
-                | None -> (context, name, final, Some vis)
-                | Some existing ->
-                  let error_msg =
-                    "The field \"" ^ name ^ "\" has already been marked as a "
-                    ^ (Visibility.string_of_visibility existing)
-                    ^ " member." 
-                  in
-                  let new_ctx = emit_error context span error_msg in
-                  (new_ctx, name, final, vis_opt)
-              end
-          in
-
-          let fold_member (context, member_map, vtable_map) = function
-            (* TODO: If the parent class has a constructor, the child class must have one (call super).
-             * In addition, if you are implementing a class, the implemented class MUST NOT have any fields. *)
-            | Ast.ClassField (span, modifiers, name, typ_opt, value_opt) -> begin
-                if StringMap.mem name member_map then
-                  let error_msg =
-                    "The class \"" ^ class_name
-                    ^ "\" has already defined a member named \"" ^ name ^ "\"."
-                  in
-                  let new_ctx = emit_error context span error_msg in
-                  (new_ctx, member_map, vtable_map)
-                else begin
-                  let (ctx_after_modifiers, _, final, vis_opt) =
-                    List.fold_left fold_member_modifier (context, name, false, None) modifiers
-                  in
-                  let vis = match vis_opt with
-                    | None -> Visibility.Private
-                    | Some v -> v
-                  in
-                  (* We must be able to figure out the type of this value.
-                   * If no type is given, then there MUST be a given value.
-                   * If a value is given, it must be castable to the provided type. 
-                   * TODO: If no value is provided, there MUST be a constructor that initializes it. *)
-                  match (typ_opt, value_opt) with
-                  | (None, None) ->
-                    let error_msg = "If no type is given, then a default value must be provided." in
-                    let new_ctx = emit_error context span error_msg in
-                    (new_ctx, member_map, vtable_map)
-                  | _ -> begin
-                      let (ctx_after_value, field_type, compiled_value_opt) = match value_opt with
-                        | None -> (ctx_after_modifiers, UnknownType, None)
-                        | Some value -> begin
-                            let (ctx_after_value, value_type, compiled_value_opt) = 
-                              compile_expr ctx_after_modifiers value
-                            in
-                            match typ_opt with
-                            | None -> (ctx_after_value, value_type, compiled_value_opt)
-                            | Some typ_ast -> begin
-                                let (ctx_after_type, compiled_type) = compile_type ctx_after_value typ_ast in
-                                let value_span = Ast.span_of_expr value in
-                                match cast_value ctx_after_type value_span compiled_value_opt value_type compiled_type with
-                                | (ctx_after_cast, Error _) ->
-                                  (ctx_after_cast, compiled_type, None)
-                                | (ctx_after_cast, Ok coerced_value_opt) ->
-                                  (ctx_after_cast, compiled_type, coerced_value_opt)
-                              end
-                          end
-                      in
-
-                      let member = ClassField (span, final, name, field_type, compiled_value_opt) in
-                      let new_member_map = StringMap.add name (vis, member) member_map in
-                      (ctx_after_value, new_member_map, vtable_map)
-                    end
-
-                end
-              end
-            (* TODO: Other kinds of members *)
-            | Ast.ClassFunc (_, vis, (_, name, ast_sig, _)) as ast_member ->
-              let (ctx_after_sig, params, returns) = compile_function_signature context ast_sig in
-              let qualified = Sema.qualify_class_function_name path class_name name in
-              let member = ClassFunc (Method, qualified, params, returns, ast_member) in
-              let new_member_map = StringMap.add name (vis, member) member_map in
-              let new_vtable_map = StringMap.add name (Utils.length_of_map vtable_map) vtable_map in
-              (ctx_after_sig, new_member_map, new_vtable_map)
-            | _ -> (context, member_map, vtable_map)
-          in
-
-          let (ctx_after_members, member_map, vtable_map) =
-            List.fold_left fold_member (context, StringMap.empty, StringMap.empty) members 
-          in
-
-          let typ = Class (abstract, class_name, None, [], member_map, vtable_map) in
-          let symbol = TypeSymbol typ in
-          let pair = (class_name, (vis, symbol)) in
-          let new_scope = Scope.replace class_name symbol context.scope in
-          ({ ctx_after_members with scope = new_scope }, pair_list @ [pair])
         | _ -> (context, pair_list)
       in
       List.fold_left fold_type_decl (ctx_after_imports, []) decls
@@ -297,48 +199,8 @@ and load_ast_into_universe universe path (directives, decls) =
         in
         ({ result_ctx with block_is_dead = false }, new_out_list)
       end
-    (* Find the class symbol we have declared in new_scope, and compile its member functions.
-     * TODO: Compile operators. *)
-    | Ast.ClassDecl (_, _, _, name, _, _) -> begin
-        match Scope.find_opt name new_scope with
-        | Some (TypeSymbol (Class (_, class_name, _, _, members, _) as clazz)) -> begin
-            let fold_member member_name (_, member) (context, out_list) = 
-              match member with
-              | ClassFunc (_, qualified_name, params, returns, (Ast.ClassFunc (span, _, func_body) )) -> 
-                let _ = class_name, member_name, qualified_name, params, returns in
-
-                (* TODO: Create a new context with the class injected, as well as members. *)
-                let child_context =
-                  let initial_context = { context with current_class = Some clazz } in
-                  initial_context
-                in
-
-                (* We need to generate the function with the properly-qualified name. *)
-                let qualified_func_body =
-                  let (span, name, fsig, block) = func_body in
-                  (span, (Sema.qualify [class_name; name]), fsig, block)
-                in
-                let func = Ast.ConcreteFunc qualified_func_body in
-                let (new_ctx, new_out_list, returns_opt) = compile_function (child_context, out_list) func in
-                let result_ctx = match returns_opt with
-                  | None | Some VoidType -> new_ctx
-                  | Some returns -> 
-                    if new_ctx.block_is_dead then
-                      new_ctx
-                    else
-                      let error_message = missing_return returns in
-                      emit_error new_ctx span error_message
-                in
-                ({ result_ctx with block_is_dead = false }, new_out_list)
-              | _ -> (context, out_list)
-            in
-            StringMap.fold fold_member members (context, out_list)
-          end
-        | _ -> (context, out_list)
-      end
     (* We have already compiled types. *)
     | Ast.TypeDecl _ -> (context, out_list)
-    | Ast.DummyDecl -> (context, out_list)
     (* | _ -> (context, out_list) *)
   in
   let (final_ctx, compiled_functions) = List.fold_left compile_decl (new_context, []) decls in

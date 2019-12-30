@@ -16,7 +16,6 @@ and func = string * ((string * typ) list) * typ * ((instr spanned) list)
 and symbol =
   (* | FuncSymbol of string * typ * (typ list) * (instr list) *)
   | FuncSymbol of bool * string * ((string * typ) list) * typ * Ast.decl
-  | VtableSymbol of typ * int * string * ((string * typ) list) * typ
   | VarSymbol of bool * string * typ
   | ParamSymbol of string * int * typ
   | TypeSymbol of typ
@@ -36,23 +35,9 @@ and typ =
   | VoidType
   | OptionalType of typ
   | StructType of typ StringMap.t
-  | Class of
-      bool * string * (typ option) * (typ list)
-      * ((Visibility.t * class_member) StringMap.t)
-      * (int StringMap.t)
   | UnknownType
-and class_member =
-  | ClassField of Ast.span * bool * string * typ * (value option)
-  | ClassFunc of class_func_type * string * ((string * typ) list) * typ * Ast.class_member
-  | UnresolvedClassMember of Ast.class_member
-and class_func_type =
-  | Method
-  | Operator
-  | Getter
-  | Setter
 and value =
   | FunctionCall of typ * string * (value list)
-  | VtableCall of typ * typ * int * (value list)
   | IntLiteral of int
   | DoubleLiteral of float
   | BoolLiteral of bool
@@ -85,7 +70,6 @@ let default_universe =
 
 let rec type_of_value = function
   | FunctionCall (typ, _, _) -> typ
-  | VtableCall (typ, _, _, _) -> typ
   | IntLiteral _ -> IntType
   | DoubleLiteral _ -> DoubleType
   | BoolLiteral _ -> BoolType
@@ -144,9 +128,6 @@ and string_of_symbol = function
   | ImportedSymbol (m, name) ->
     let {path; _} = !m in
     path ^ "::" ^ name
-  | VtableSymbol (clazz, index, _, _, _) ->
-    "(vtable index " ^ (string_of_int index)
-    ^ " of " ^ (string_of_type clazz) ^ ")"
 and string_of_block block =
   let indented_string_of_instr instr =
     "  " ^ (string_of_instr instr)
@@ -185,7 +166,6 @@ and string_of_type = function
       else
         "{ " ^ field_str ^ " }"
     end
-  | Class (_, name, _, _, _, _) -> "class " ^ name ^ " {}"
 and string_of_value = function
   | IntLiteral v -> string_of_int v
   | DoubleLiteral v -> string_of_float v
@@ -207,13 +187,6 @@ and string_of_value = function
   | FunctionCall (_, target_string, args) ->
     (* let args = List.map (function (_, x) -> x) spanned_args in *)
     (* let target_string = string_of_value target in *)
-    let arg_string = String.concat ", " (List.map string_of_value args) in
-    target_string ^ "(" ^ arg_string ^ ")"
-  | VtableCall (_, clazz, index, args) ->
-    let target_string =
-      "(vtable index " ^ (string_of_int index)
-      ^ " of " ^ (string_of_type clazz) ^ ")"
-    in
     let arg_string = String.concat ", " (List.map string_of_value args) in
     target_string ^ "(" ^ arg_string ^ ")"
   | CastDoubleToInt inner ->

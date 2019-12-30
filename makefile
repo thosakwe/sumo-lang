@@ -15,3 +15,8 @@ testcases: lib
 clean:
 	$(MAKE) -C testcases clean
 	$(MAKE) -C lib clean
+
+wtf:
+	dune exec bin/sumoc.exe -j4 -- -verbose testcases/class_method.sumo
+	cc -o testcases/class_method.exe testcases/class_method.o
+	testcases/class_method.exe
