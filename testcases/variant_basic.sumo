@@ -1,0 +1,9 @@
+type MyVariant = variant Yes | No
+
+fn main(): int {
+  var x = Yes()
+  match x with {
+    Yes -> 1
+    No -> 0
+  }
+}
