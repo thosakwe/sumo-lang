@@ -125,7 +125,8 @@ and load_ast_into_universe universe path (directives, decls) =
             let symbol = TypeSymbol ssa_typ in
             let pair = (name, (vis, symbol)) in
             let new_scope = Scope.replace name symbol context.scope in
-            ({ new_ctx with scope = new_scope }, pair_list @ [pair])
+            let new_pair_list = pair_list @ [pair] @ pairs_of_variant vis ssa_typ in
+            ({ new_ctx with scope = new_scope }, new_pair_list)
           end
         | _ -> (context, pair_list)
       in

@@ -156,6 +156,8 @@ let rec compile_expr context = function
           (* If it doesn't exist, report an error, of course. *)
           if not (Scope.mem name context.scope) then
             let error_msg = (Scope.does_not_exist name) ^ " It cannot be called as a function." in
+            let dump name _ = print_endline name in
+            Scope.iter dump context.scope;
             let new_ctx = emit_error context span error_msg in
             (new_ctx, UnknownType, None)
           else
