@@ -114,7 +114,9 @@ typ:
 
 variant_list: option(BW_OR) v = separated_list(BW_OR, variant) { v }
 
-variant: n = id t = option(typ) { ($loc, n, t) }
+variant: 
+  | n = id { ($loc, n, []) }
+  | n = id LPAREN t = separated_list(COMMA, typ) RPAREN { ($loc, n, t) }
 
 struct_type_field: n = id COLON t = typ { ($loc, n, t) }
 

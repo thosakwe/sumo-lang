@@ -45,7 +45,7 @@ and typ =
   | TypeRef of span * string
   | OptionalType of span * typ
   | StructType of span * ((span * string * typ) list)
-  | VariantType of span * ((span * string * (typ option)) list)
+  | VariantType of span * ((span * string * (typ list)) list)
 and expr =
   | Ref of span * string
   | IntLiteral of span * int

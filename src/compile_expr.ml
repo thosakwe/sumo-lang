@@ -141,6 +141,32 @@ let rec compile_expr context = function
               in
               ((emit_error context span error_msg), UnknownType, None)
           end
+        (* If we get a variant constructor, type-check it, and emit a StructLiteral. *)
+        | ConstructorSymbol (variant_type, variant_index, (name, arg_types)) -> begin
+            let (ctx_after_args, compiled_args, success) =
+              let fold_param (out_list, index) arg_type =
+                let name = "p" ^ (string_of_int index) in
+                let pair = (name, arg_type) in
+                (out_list @ [pair], index + 1)
+              in
+              let (params, _) = List.fold_left fold_param ([], 0) arg_types in
+              type_check_args context span name params actual_args 
+            in
+            if not success then
+              (ctx_after_args, UnknownType, None)
+            else begin
+              (* If all typechecking went well, then fold the compiled args into a struct literal. *)
+              let fold_arg (map, index) arg =
+                let name = "p" ^ (string_of_int index) in
+                let new_map = StringMap.add name arg map in
+                (new_map, index + 1)
+              in
+              let initial_map = StringMap.add "a" (IntLiteral variant_index) StringMap.empty in
+              let (value_map, _) = List.fold_left fold_arg (initial_map, 0) compiled_args in
+              let result = StructLiteral (variant_type, value_map) in
+              (ctx_after_args, variant_type, Some result)
+            end
+          end
         | _ as sym ->  
           let error_msg =
             "The symbol \"" ^ (string_of_symbol sym) ^ "\" is not a callable value."
@@ -388,3 +414,38 @@ let rec compile_expr context = function
             (new_ctx, UnknownType, None)
         end
     end
+
+and type_check_args context span func_name params args =
+  if (List.length args) != (List.length params) then 
+    let error_msg =
+      "The function \"" ^ func_name ^ "\" expects "
+      ^ (string_of_int (List.length params))
+      ^ " argument(s), but "
+      ^ (string_of_int (List.length args))
+      ^ " argument(s) were provided instead."
+    in
+    ((emit_error context span error_msg), [], false)
+  else
+    (* If we have the correct number of args, then perform type-checking. *)
+    let params_to_args = List.combine params args in
+    let check_one_pair (context, out_list, success) ((name, param_type), arg) =
+      (* The type-check only fails if we reach a cast failure. *)
+      let (new_ctx, typ, value_opt) = compile_expr context arg in
+      let cast_failure = 
+        let error_msg =
+          "Cannot cast argument of type " ^ (string_of_type typ)
+          ^ " to type " ^ (string_of_type param_type)
+          ^ " for argument \"" ^ name
+          ^ "\"."
+        in
+        ((emit_error new_ctx span error_msg), out_list, false)
+      in
+      match cast_value context span value_opt typ param_type with
+      | (out_ctx, Error _) ->
+        (out_ctx, out_list, false)
+      | (out_ctx, Ok coerced_value_opt) ->
+        match coerced_value_opt with
+        | None -> cast_failure
+        | Some value -> (out_ctx, (out_list @ [value]), success)
+    in
+    List.fold_left check_one_pair (context, [], true) params_to_args

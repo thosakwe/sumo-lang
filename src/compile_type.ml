@@ -40,7 +40,7 @@ let rec compile_type context = function
         (new_ctx, StructType (StringMap.of_seq (List.to_seq ssa_fields)))
     end
   | Ast.VariantType (span, variants) -> begin
-      let fold_variant_ast (context, map) (span, name, arg_opt) =
+      let fold_variant_ast (context, map) (span, name, args) =
         if StringMap.mem name map then
           let error_msg =
             "This type already has a variant named \"" ^ name ^ "\"." 
@@ -48,16 +48,14 @@ let rec compile_type context = function
           let new_ctx = emit_error context span error_msg in
           (new_ctx, map)
         else begin
-          let (ctx_after_arg, compiled_arg_opt) =
-            match arg_opt with
-            | None -> (context, None)
-            | Some arg -> 
-              let (ctx, compiled) = compile_type context arg in
-              (ctx, Some compiled)
+          let fold_arg (context, out_list) arg =
+            let (ctx, compiled) = compile_type context arg in
+            (ctx, out_list @ [compiled])
           in
-          let variant = (name, compiled_arg_opt) in
+          let (ctx_after_args, variant_args) = List.fold_left fold_arg (context, []) args in
+          let variant = (name, variant_args) in
           let new_map = StringMap.add name variant map in
-          (ctx_after_arg, new_map)
+          (ctx_after_args, new_map)
         end
       in
 
@@ -77,24 +75,26 @@ let rec compile_type context = function
 (** Injects all variants of a given type into the scope. *)
 let pairs_of_variant vis = function
   | VariantType variant_map as typ ->
-    let fold_variant_ssa name variant out_list =
-      let sym = ConstructorSymbol (typ, variant) in
-      out_list @ [(name, (vis, sym))]
+    let fold_variant_ssa name variant (out_list, index) =
+      let sym = ConstructorSymbol (typ, index, variant) in
+      let new_list = out_list @ [(name, (vis, sym))] in
+      (new_list, index + 1)
     in
-    let new_ctx = StringMap.fold fold_variant_ssa variant_map [] in
-    new_ctx
+    let (pair_list, _) = StringMap.fold fold_variant_ssa variant_map ([], 0) in
+    pair_list
   | _ -> []
 
 (** Injects all variants of a given type into the scope. *)
 let fold_variants_into_context context = function
   | VariantType variant_map as typ ->
-    let fold_variant_ssa name variant context =
-      let sym = ConstructorSymbol (typ, variant) in
+    let fold_variant_ssa name variant (context, index) =
+      let sym = ConstructorSymbol (typ, index, variant) in
       let new_scope_map = StringMap.add name sym StringMap.empty in
       let new_scope = Scope.ChildScope (context.scope, new_scope_map) in
-      { context with scope = new_scope }
+      let new_ctx = { context with scope = new_scope } in
+      (new_ctx, index + 1)
     in
 
-    let new_ctx = StringMap.fold fold_variant_ssa variant_map context in
+    let (new_ctx, _) = StringMap.fold fold_variant_ssa variant_map (context, 0) in
     new_ctx
   | _ -> context
