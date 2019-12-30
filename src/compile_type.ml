@@ -39,3 +39,37 @@ let rec compile_type context = function
         let (new_ctx, ssa_fields) = List.fold_left fold_field (context, []) fields in
         (new_ctx, StructType (StringMap.of_seq (List.to_seq ssa_fields)))
     end
+  | Ast.VariantType (span, variants) -> begin
+      let fold_variant (context, map) (span, name, arg_opt) =
+        if StringMap.mem name map then
+          let error_msg =
+            "This type already has a variant named \"" ^ name ^ "\"." 
+          in
+          let new_ctx = emit_error context span error_msg in
+          (new_ctx, map)
+        else begin
+          let (ctx_after_arg, compiled_arg_opt) =
+            match arg_opt with
+            | None -> (context, None)
+            | Some arg -> 
+              let (ctx, compiled) = compile_type context arg in
+              (ctx, Some compiled)
+          in
+          let variant = (name, compiled_arg_opt) in
+          let new_map = StringMap.add name variant map in
+          (ctx_after_arg, new_map)
+        end
+      in
+
+      let (ctx_after_variants, variant_map) =
+        List.fold_left fold_variant (context, StringMap.empty) variants
+      in
+
+      if StringMap.is_empty variant_map then
+        let error_msg = "A sum type must have at least one variant." in
+        let new_ctx = emit_error context span error_msg in
+        (new_ctx, UnknownType)
+      else
+        let result = VariantType variant_map in
+        (ctx_after_variants, result)
+    end

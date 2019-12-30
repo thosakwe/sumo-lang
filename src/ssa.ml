@@ -36,7 +36,7 @@ and typ =
   | VoidType
   | OptionalType of typ
   | StructType of typ StringMap.t
-  | VariantType of variant list
+  | VariantType of variant StringMap.t
   | UnknownType
 and variant = string * (typ option)
 and value =
@@ -171,7 +171,11 @@ and string_of_type = function
         "{ " ^ field_str ^ " }"
     end
   | VariantType variants ->
-    let var_str = String.concat " | " (List.map string_of_variant variants) in
+    let fold_variant _ (name, arg_opt) out_list =
+      let value = string_of_variant (name, arg_opt) in
+      out_list @ [value]
+    in
+    let var_str = String.concat " | " (StringMap.fold fold_variant variants []) in
     "var " ^ var_str
 and string_of_value = function
   | IntLiteral v -> string_of_int v
