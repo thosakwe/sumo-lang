@@ -76,6 +76,7 @@ let rec compile_universe module_path errors universe =
         | ParamSymbol _ -> out_list
         | ImportedSymbol _ -> out_list
         | TypeSymbol _ -> out_list
+        | ConstructorSymbol _ -> out_list
       in
       List.fold_left llvm_of_pair [] pairs
     in
