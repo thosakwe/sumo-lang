@@ -508,7 +508,19 @@ and compile_value context span value =
     let result = Llvm.build_load ptr "opt_get" new_ctx.builder in
     (new_ctx, result)
   | StructLiteral (struct_type, fields) -> begin
-      let llvm_struct_type = compile_struct_type context.llvm_context struct_type in
+      (* If we are instantiating a variant, instead of generating the basic variant struct,
+       * create the specialized struct type that corresponds to the given fields. *)
+      let llvm_struct_type = match struct_type with
+        | VariantType _ ->
+          let fold_value_type _ value out_list =
+            let ssa_typ = Ssa.type_of_value value in
+            let llvm_type = compile_type context.llvm_context ssa_typ in
+            out_list @ [llvm_type]
+          in
+          let fields = StringMap.fold fold_value_type fields [] in
+          Llvm.struct_type context.llvm_context (Array.of_list fields)
+        | _ -> compile_struct_type context.llvm_context struct_type 
+      in
       let struct_pointer = Llvm.build_alloca llvm_struct_type "literal_struct_ptr" context.builder in
       let _ = struct_pointer, fields in
 
@@ -557,16 +569,16 @@ and compile_type context = function
   | BoolType -> Llvm.i1_type context
   | VoidType -> Llvm.void_type context
   (* Regardless of what variant it is, it always has the same abstract shape. *)
-  | VariantType _ ->
-    let struct_type = Llvm.struct_type context [| Llvm.i64_type context |] in
+  | VariantType _ as self ->
+    let struct_type = compile_struct_type context self in
     Llvm.pointer_type struct_type
   | OptionalType inner ->
     let llvm_inner = compile_type context inner in
     let bool_type = compile_type context BoolType in
     let struct_type = Llvm.struct_type context [| bool_type; llvm_inner |] in
     Llvm.pointer_type struct_type
-  | StructType (fields) ->
-    let struct_type = compile_struct_type context (StructType fields) in
+  | StructType _ as self ->
+    let struct_type = compile_struct_type context self in
     Llvm.pointer_type struct_type
   (* Note: This case should never be reached. *)
   | UnknownType -> Llvm.void_type context
@@ -578,6 +590,9 @@ and compile_struct_type context = function
     in
     let llvm_fields = StringMap.fold fold_field fields [] in
     Llvm.struct_type context (Array.of_list llvm_fields)
+  (* Regardless of what variant it is, it always has the same abstract shape. *)
+  | VariantType _ ->
+    Llvm.struct_type context [| Llvm.i64_type context |]
   (* Note: This case should never be reached. *)
   | _ -> Llvm.void_type context
 
