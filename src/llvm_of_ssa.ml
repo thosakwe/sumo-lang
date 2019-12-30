@@ -554,11 +554,14 @@ and compile_type context = function
   | DoubleType -> Llvm.double_type context
   | BoolType -> Llvm.i1_type context
   | VoidType -> Llvm.void_type context
+  (* Regardless of what variant it is, it always has the same abstract shape. *)
+  | VariantType _ ->
+    let struct_type = Llvm.struct_type context [| Llvm.i64_type context |] in
+    Llvm.pointer_type struct_type
   | OptionalType inner ->
     let llvm_inner = compile_type context inner in
     let bool_type = compile_type context BoolType in
     let struct_type = Llvm.struct_type context [| bool_type; llvm_inner |] in
-    (* Llvm.pointer_type struct_type *)
     Llvm.pointer_type struct_type
   | StructType (fields) ->
     let struct_type = compile_struct_type context (StructType fields) in
