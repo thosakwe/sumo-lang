@@ -102,7 +102,7 @@ param:
 
 
 typ:
-  | VAR v = separated_list(BW_OR, variant) { Ast.VariantType ($loc, v) }
+  | VAR v = variant_list { Ast.VariantType ($loc, v) }
   | v = id { Ast.TypeRef ($loc, v) }
   | v = typ QUESTION
     {  
@@ -111,6 +111,8 @@ typ:
         | _  -> Ast.OptionalType ($loc, v)
     }
   | LCURLY f = list(struct_type_field) RCURLY { Ast.StructType ($loc, f) }
+
+variant_list: option(BW_OR) v = separated_list(BW_OR, variant) { v }
 
 variant: n = id t = option(typ) { ($loc, n, t) }
 
