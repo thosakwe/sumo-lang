@@ -551,6 +551,11 @@ and compile_value context span value =
       | _ -> 
         (ctx_after_lhs, Llvm.build_load field_ptr "get_element" ctx_after_lhs.builder)
     end
+  | PointerCast (value, typ) ->
+    let (ctx_after_value, llvm_value) = compile_value context span value in
+    let llvm_type = compile_type context.llvm_context typ in
+    let result = Llvm.build_pointercast llvm_value llvm_type "pointer_cast" context.builder in
+    (ctx_after_value, result)
 
 and compile_function_signature llvm_context params returns prelude_params =
   let llvm_params =

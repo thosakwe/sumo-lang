@@ -66,6 +66,7 @@ and value =
   | OptionalGet of typ * value
   | GetElement of typ * value * int
   | SetElement of typ * value * int * value
+  | PointerCast of value * typ
 
 let default_universe =
   {
@@ -106,6 +107,7 @@ let rec type_of_value = function
   | OptionalGet (typ, _) -> typ
   | GetElement (typ, _, _) -> typ
   | SetElement (typ, _, _, _) -> typ
+  | PointerCast (_, typ) -> typ
 
 let rec string_of_func (name, params, returns, spanned_instrs) =
   let instrs = List.map (function (_, x) -> x) spanned_instrs in
@@ -231,6 +233,8 @@ and string_of_value = function
   | SetElement (typ, lhs, index, rhs) ->
     "(setelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_int index) ^ ") of "
     ^ (string_of_value lhs) ^ " = " ^ (string_of_value rhs) ^ ")"
+  | PointerCast (value, typ) ->
+    "pointercast (" ^ (string_of_value value) ^ ") to " ^ (string_of_type typ)
 and string_of_variant (name, args) =
   let arg_str =
     let lst = List.map string_of_type args in
