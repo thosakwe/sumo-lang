@@ -1,7 +1,7 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS SEMI QUESTION
 %token DO ELSE EXTERNAL FINAL FN FOR HIDE IF IMPORT RETURN
-%token SHOW THIS TYPE VAR WHILE
+%token SHOW THIS TYPE VAR WHILE MATCH WITH AS
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
 %token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR INCR DECR BOOL_NOT BW_NOT
@@ -142,6 +142,21 @@ stmt:
   | DO b = stmt WHILE c = expr { Ast.DoWhile ($loc, b, c) }
   | FOR LPAREN i = option(stmt) SEMI c = expr SEMI p = separated_list(SEMI, stmt) RPAREN b = stmt
     { Ast.ForLoop ($loc, i, c, p, b) }
+  | MATCH cond = expr WITH LCURLY clauses = list(match_clause) RCURLY
+    { Ast.MatchStmt ($loc, cond, clauses) }
+
+match_clause: p = pattern b = block { ($loc, p, b) }
+
+pattern:
+  | n = id { if n = "_" then (Ast.IgnoredParam $loc) else (Ast.NamedParam ($loc, n)) }
+  | LCURLY p separated_list(COMMA, struct_pattern) RCURLY { Ast.StructPattern ($loc, p) }
+  | n = id LPAREN p = separated_list(COMMA, pattern) RPAREN { Ast.ConstructorPattern ($loc, n, p) }
+  | p = pattern AS n = id { Ast.AliasedPattern($loc, p, n) }
+  | option(BW_OR) p = separated_list(BW_OR, pattern) { Ast.MultiPattern($loc, p) }
+
+struct_pattern:
+  | n = id { ($loc, n, (Ast.NamedParam ($loc, n))) }
+  | n = id EQUALS p = pattern { ($loc, n, p) }
 
 if_clause:
   | IF LPAREN c = expr RPAREN b = stmt { Ast.BasicIfClause ($loc, c, b) }

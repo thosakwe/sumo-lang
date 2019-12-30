@@ -67,6 +67,7 @@ rule read = parse
   | "&&=" { BOOL_AND_EQUALS }
   | "||=" { BOOL_OR_EQUALS }
 
+  | "as" { AS }
   | "do" { DO }
   | "else" { ELSE }
   | "external" { EXTERNAL }
@@ -76,6 +77,7 @@ rule read = parse
   | "hide" { HIDE }
   | "if" { IF }
   | "import" { IMPORT }
+  | "match" { MATCH }
   | "public" { VIS Visibility.Public }
   | "protected" { VIS Visibility.Protected }
   | "private" { VIS Visibility.Private }
@@ -85,6 +87,7 @@ rule read = parse
   | "type" { TYPE }
   | "var" { VAR }
   | "while" { WHILE }
+  | "with" { WITH }
 
   | "true" { BOOL true }
   | "false" { BOOL false }

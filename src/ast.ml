@@ -23,6 +23,8 @@ and stmt =
   | While of span * expr * stmt
   | DoWhile of span * stmt * expr
   | ForLoop of span * (stmt option) * expr * (stmt list) * stmt
+  | MatchStmt of span * expr * (match_clause list)
+and match_clause = span * pattern * block
 and var_decl = span * bool * (typ option) * string * expr
 and pattern =
   | IgnoredPattern of span
