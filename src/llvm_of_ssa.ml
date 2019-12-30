@@ -586,6 +586,7 @@ and compile_type context = function
     let struct_type = compile_struct_type context self in
     Llvm.pointer_type struct_type
   (* Note: This case should never be reached. *)
+  | AnyType
   | UnknownType -> Llvm.void_type context
 
 and compile_struct_type context = function

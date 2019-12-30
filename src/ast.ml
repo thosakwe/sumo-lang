@@ -27,9 +27,11 @@ and var_decl = span * bool * (typ option) * string * expr
 and pattern =
   | IgnoredPattern of span
   | NamedPattern of span * string
-  | StructPattern of span * (pattern list)
+  | StructPattern of span * (struct_pattern list)
+  | ConstructorPattern of span * string * (pattern list)
   | AliasedPattern of span * pattern * string
-  | ConstructorPattern of span * typ * pattern
+  | MultiPattern of span * (pattern list)
+and struct_pattern = span * string * pattern
 and if_clause =
   | BasicIfClause of span * expr * stmt
   | NullCheckIfClause of span * var_decl list * stmt

@@ -15,7 +15,7 @@ let rec cast_value context span value_opt from_type to_type =
     let double_to_int_warning = "Casting a double to int loses precision." in
 
     match (from_type, to_type, value_opt) with
-    | (_, UnknownType, value_opt) -> (context, Ok value_opt)
+    | (_, AnyType, value_opt) -> (context, Ok value_opt)
     | (TypeAlias (_, inner), _, _) ->
       cast_value context span value_opt inner to_type
     | (_, TypeAlias (_, inner), _) ->

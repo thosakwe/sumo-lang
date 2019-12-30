@@ -38,6 +38,7 @@ and typ =
   | StructType of typ StringMap.t
   | VariantType of variant StringMap.t
   | TypeAlias of string * typ
+  | AnyType
   | UnknownType
 and variant = string * (typ list)
 and value =
@@ -161,6 +162,7 @@ and string_of_type = function
   | BoolType -> "bool"
   | VoidType -> "void"
   | OptionalType inner -> (string_of_type inner) ^ "?"
+  | AnyType -> "<any>"
   | UnknownType -> "<unknown>"
   | StructType (fields) -> begin
       let string_of_field name typ out_list =
