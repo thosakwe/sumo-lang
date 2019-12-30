@@ -20,6 +20,7 @@ and symbol =
   | ParamSymbol of string * int * typ
   | TypeSymbol of typ
   | ImportedSymbol of (sumo_module ref) * string
+  | ConstructorSymbol of typ * variant
 and instr =
   | Value of value
   | Return of typ * value
@@ -35,7 +36,9 @@ and typ =
   | VoidType
   | OptionalType of typ
   | StructType of typ StringMap.t
+  | VariantType of variant list
   | UnknownType
+and variant = string * (typ option)
 and value =
   | FunctionCall of typ * string * (value list)
   | IntLiteral of int
@@ -128,6 +131,7 @@ and string_of_symbol = function
   | ImportedSymbol (m, name) ->
     let {path; _} = !m in
     path ^ "::" ^ name
+  | ConstructorSymbol (_, variant) -> string_of_variant variant
 and string_of_block block =
   let indented_string_of_instr instr =
     "  " ^ (string_of_instr instr)
@@ -166,6 +170,9 @@ and string_of_type = function
       else
         "{ " ^ field_str ^ " }"
     end
+  | VariantType variants ->
+    let var_str = String.concat " | " (List.map string_of_variant variants) in
+    "var " ^ var_str
 and string_of_value = function
   | IntLiteral v -> string_of_int v
   | DoubleLiteral v -> string_of_float v
@@ -217,6 +224,10 @@ and string_of_value = function
   | SetElement (typ, lhs, index, rhs) ->
     "(setelement(" ^ (string_of_type typ) ^ ", " ^ (string_of_int index) ^ ") of "
     ^ (string_of_value lhs) ^ " = " ^ (string_of_value rhs) ^ ")"
+and string_of_variant (name, arg_opt) =
+  match arg_opt with
+  | None -> name
+  | Some arg -> name ^ "(" ^ (string_of_type arg) ^ ")"
 
 let dump_module _ module_ref =
   let m = !module_ref in
