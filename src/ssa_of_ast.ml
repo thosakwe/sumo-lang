@@ -122,7 +122,7 @@ and load_ast_into_universe universe path (directives, decls) =
         match self with
         | Ast.TypeDecl (_, vis, name, typ) -> begin
             let (new_ctx, ssa_typ) = compile_type context typ in
-            let symbol = TypeSymbol ssa_typ in
+            let symbol = TypeSymbol (TypeAlias (name, ssa_typ)) in
             let pair = (name, (vis, symbol)) in
             let new_scope = Scope.replace name symbol context.scope in
             let new_pair_list = pair_list @ [pair] @ pairs_of_variant vis ssa_typ in
