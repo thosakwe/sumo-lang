@@ -24,6 +24,12 @@ and stmt =
   | DoWhile of span * stmt * expr
   | ForLoop of span * (stmt option) * expr * (stmt list) * stmt
 and var_decl = span * bool * (typ option) * string * expr
+and pattern =
+  | IgnoredPattern of span
+  | NamedPattern of span * string
+  | StructPattern of span * (pattern list)
+  | AliasedPattern of span * pattern * string
+  | ConstructorPattern of span * typ * pattern
 and if_clause =
   | BasicIfClause of span * expr * stmt
   | NullCheckIfClause of span * var_decl list * stmt
@@ -39,6 +45,7 @@ and typ =
   | TypeRef of span * string
   | OptionalType of span * typ
   | StructType of span * ((span * string * typ) list)
+  | VariantType of span * ((span * string * (typ option)) list)
 and expr =
   | Ref of span * string
   | IntLiteral of span * int

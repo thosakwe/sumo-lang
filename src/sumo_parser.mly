@@ -1,7 +1,7 @@
 %token LBRACKET RBRACKET LCURLY RCURLY LPAREN RPAREN
 %token ARROW COLON COMMA DOT EQUALS SEMI QUESTION
 %token DO ELSE EXTERNAL FINAL FN FOR HIDE IF IMPORT RETURN
-%token SHOW THIS TYPE VAR WHILE ABSTRACT CLASS OPERATOR
+%token SHOW THIS TYPE VAR WHILE
 
 %token TIMES DIV MOD PLUS MINUS SHL SHR LT LTE GT GTE BOOL_EQ BOOL_NEQ
 %token BW_AND BW_XOR BW_OR BOOL_AND BOOL_OR INCR DECR BOOL_NOT BW_NOT
@@ -59,18 +59,6 @@ decl:
   | v = vis f = func { Ast.FuncDecl ($loc, v, f) }
   | v = vis TYPE n = id EQUALS t = typ { Ast.TypeDecl ($loc, v, n, t) }
 
-abstract:
-  | { false }
-  | ABSTRACT { true }
-
-extends:
-  | { [] }
-  | COLON v = separated_list(COMMA, typ) { v }
-
-m_type: COLON t = typ { t }
-
-m_expr: EQUALS v = expr { v }
-
 func:
   | FN name = id s = func_sig b = block
     {
@@ -114,6 +102,7 @@ param:
 
 
 typ:
+  | VAR v = separated_list(BW_OR, variant) { Ast.VariantType ($loc, v) }
   | v = id { Ast.TypeRef ($loc, v) }
   | v = typ QUESTION
     {  
@@ -122,6 +111,8 @@ typ:
         | _  -> Ast.OptionalType ($loc, v)
     }
   | LCURLY f = list(struct_type_field) RCURLY { Ast.StructType ($loc, f) }
+
+variant: n = id t = option(typ) { ($loc, n, t) }
 
 struct_type_field: n = id COLON t = typ { ($loc, n, t) }
 

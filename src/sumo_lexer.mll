@@ -67,8 +67,6 @@ rule read = parse
   | "&&=" { BOOL_AND_EQUALS }
   | "||=" { BOOL_OR_EQUALS }
 
-  | "abstract" { ABSTRACT }
-  | "class" { CLASS }
   | "do" { DO }
   | "else" { ELSE }
   | "external" { EXTERNAL }
@@ -78,7 +76,6 @@ rule read = parse
   | "hide" { HIDE }
   | "if" { IF }
   | "import" { IMPORT }
-  | "operator" { OPERATOR }
   | "public" { VIS Visibility.Public }
   | "protected" { VIS Visibility.Protected }
   | "private" { VIS Visibility.Private }

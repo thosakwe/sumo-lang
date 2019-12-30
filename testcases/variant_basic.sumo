@@ -1,4 +1,6 @@
-type MyVariant = variant Yes | No
+type MyVariant = var
+  | Yes
+  | No
 
 fn main(): int {
   var x = Yes()
