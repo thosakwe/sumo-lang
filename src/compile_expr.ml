@@ -164,7 +164,8 @@ let rec compile_expr context = function
               let initial_map = StringMap.add "a" (IntLiteral variant_index) StringMap.empty in
               let (value_map, _) = List.fold_left fold_arg (initial_map, 0) compiled_args in
               let result = StructLiteral (variant_type, value_map) in
-              (ctx_after_args, variant_type, Some result)
+              let coerced_result = PointerCast (result, variant_type) in
+              (ctx_after_args, variant_type, Some coerced_result)
             end
           end
         | _ as sym ->  
