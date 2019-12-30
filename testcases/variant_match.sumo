@@ -1,9 +1,9 @@
 type MyVariant = var
-  | Yes
+  | Yes(int)
   | No
 
 fn main(): int {
-  var x = Yes()
+  var x = Yes(-45)
   match x with {
     Yes -> 1
     No -> 0
