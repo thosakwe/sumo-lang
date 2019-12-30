@@ -40,7 +40,7 @@ let rec compile_type context = function
         (new_ctx, StructType (StringMap.of_seq (List.to_seq ssa_fields)))
     end
   | Ast.VariantType (span, variants) -> begin
-      let fold_variant (context, map) (span, name, arg_opt) =
+      let fold_variant_ast (context, map) (span, name, arg_opt) =
         if StringMap.mem name map then
           let error_msg =
             "This type already has a variant named \"" ^ name ^ "\"." 
@@ -62,7 +62,7 @@ let rec compile_type context = function
       in
 
       let (ctx_after_variants, variant_map) =
-        List.fold_left fold_variant (context, StringMap.empty) variants
+        List.fold_left fold_variant_ast (context, StringMap.empty) variants
       in
 
       if StringMap.is_empty variant_map then
@@ -71,5 +71,15 @@ let rec compile_type context = function
         (new_ctx, UnknownType)
       else
         let result = VariantType variant_map in
-        (ctx_after_variants, result)
+
+        (* Inject all variants as constructor symbols. *)
+        let fold_variant_ssa name variant context =
+          let sym = ConstructorSymbol (result, variant) in
+          let new_scope_map = StringMap.add name sym StringMap.empty in
+          let new_scope = Scope.ChildScope (context.scope, new_scope_map) in
+          { context with scope = new_scope }
+        in
+
+        let new_ctx = StringMap.fold fold_variant_ssa variant_map ctx_after_variants in
+        (new_ctx, result)
     end
