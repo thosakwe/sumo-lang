@@ -164,6 +164,7 @@ let block_of_stmt = function
   | While (span, _, _) as self -> (span, [self])
   | DoWhile (span, _, _) as self -> (span, [self])
   | ForLoop (span, _, _, _, _) as self -> (span, [self])
+  | MatchStmt (span, _, _) as self -> (span, [self])
 
 let span_of_expr = function
   | Ref (span, _)

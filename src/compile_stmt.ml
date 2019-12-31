@@ -2,6 +2,7 @@ open Cast_value
 open Compile_block
 open Compile_expr
 open Compile_type
+open Pattern_match
 open Ssa
 open Ssa_context
 
@@ -294,6 +295,20 @@ let rec compile_stmt (initial_context, out_list, expected_return) stmt =
       in
 
       compile_stmt (ctx_after_init, out_list_after_init, expected_return) while_loop
+    end
+  (* A pattern matching statement is a glorified if statement. *)
+  | Ast.MatchStmt (span, cond, clauses) -> begin
+      let context = handle_dead_code span initial_context in
+      let (ctx_after_cond, actual_type, compiled_cond_opt) = compile_expr context cond in
+      let initial_data = (ctx_after_cond, []) in
+      let fold_clause (context, out_list) (span, pattern, block) =
+        let (new_ctx, names, expected_type) = deduce_type_from_pattern context StringMap.empty pattern in
+        match cast_value new_ctx span compiled_cond_opt actual_type expected_type with
+        | (ctx_after_cast, Error _) -> (ctx_after_cast, out_list)
+        | (ctx_after_cast, Ok coerced_value_opt) -> 
+          ()
+      in
+      ()
     end
 
 and compile_if_clause context clause name if_end_name expected_return =
