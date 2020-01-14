@@ -173,5 +173,40 @@ let rec condition_of_pattern context input_value = function
         let new_ctx = emit_error context span error_message in
         (new_ctx, BoolLiteral false)
     end
-  (* TODO: More matches *)
-  | _ -> (context, BoolLiteral false)
+  | Ast.ConstructorPattern (span, variant_name, patterns) -> begin
+      if not (Scope.mem variant_name context.scope) then
+        let error_msg = Scope.does_not_exist variant_name in
+        let new_ctx = Ssa_context.emit_error context span error_msg in
+        (new_ctx, BoolLiteral false)
+      else begin
+        match Scope.find variant_name context.scope with
+        | ConstructorSymbol (_, _, (name, arg_types)) ->
+          if (List.length arg_types) != (List.length patterns) then
+            let error_msg = 
+              "The constructor \"" ^ name ^ "\" expects"
+              ^ (string_of_int (List.length arg_types)) ^ "argument(s), but this pattern"
+              ^ "only matches " ^ (string_of_int (List.length patterns)) ^ "argument(s)."
+            in
+            let new_ctx = Ssa_context.emit_error context span error_msg in
+            (new_ctx, BoolLiteral false)
+          else
+            (* Similar to how we converted struct fields, we must compute the
+             * index of each constructor argument (this is easy, because this is a list).
+             * We then combine each subpattern match via OR. *)
+            let fold_arg (context, out_cond, index) (arg_type, pattern) =
+              let child_value = GetElement (arg_type, input_value, index + 1) in
+              let (new_ctx, subcond) = condition_of_pattern context child_value pattern in
+              (new_ctx, BoolCompare (out_cond, Ast.BooleanOr, subcond), index + 1)
+            in
+            let combined = List.combine arg_types patterns in
+            let (new_ctx, new_cond, _ ) = List.fold_left fold_arg (context, (BoolLiteral true), 0) combined in
+            (new_ctx, new_cond)
+        | sym ->
+          let error_msg = 
+            "The name \"" ^ variant_name ^ "\" resolves to"
+            ^ (string_of_symbol sym) ^ ", which is not a constructor."
+          in
+          let new_ctx = Ssa_context.emit_error context span error_msg in
+          (new_ctx, BoolLiteral false)
+      end
+    end
