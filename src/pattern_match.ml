@@ -1,4 +1,5 @@
 open Ssa
+open Ssa_context
 
 let report_existing_name context span name =
   let error_msg =
@@ -103,3 +104,74 @@ let rec deduce_type_from_pattern context existing_names = function
     in
     let initial_data = (context, existing_names, UnknownType) in
     List.fold_left fold_pattern initial_data patterns
+
+(** Converts a pattern into an "if" clause condition.
+ * Takes an `input` value, from which subpatterns are computed.
+ * For example, a struct pattern must be matched against some value. *)
+let rec condition_of_pattern context input_value = function
+  | Ast.IgnoredPattern _
+  | Ast.NamedPattern _
+  | Ast.AliasedPattern _ -> (context, BoolLiteral true)
+  (* Combine all child patterns via OR *)
+  | Ast.MultiPattern (_, children) ->
+    let fold_child (context, out_cond) child =
+      let (new_ctx, cond) = condition_of_pattern context input_value child in
+      let new_cond = BoolCompare (out_cond, Ast.BooleanOr, cond) in
+      (new_ctx, new_cond)
+    in
+    let (new_ctx, child_cond) = 
+      List.fold_left fold_child (context, (BoolLiteral true)) children
+    in
+    (new_ctx, child_cond)
+  (* If we are matching a struct, we need to match against all of its fields. *)
+  | Ast.StructPattern (span, field_patterns) -> begin
+      (* If this is not a struct type, we obviously can't match against it. *)
+      match type_of_value input_value with
+      | StructType field_types as typ -> begin
+          (* Combine the patterns into a single boolean OR. *)
+          let fold_pattern (context, out_cond) (span, name, pattern) =
+            (* We have to lookup each field, in order to produce the next
+             * input_value to pass to recursive calls.
+             * This way, we can resolve an index to pass to GetElement. After that's
+             * done, the rest is pretty trivial.
+             *
+             * However, if the name is "_", then the field is ignored, so continue. *)
+            let initial_data = (None, 0) in
+            let find_field field_name field_type (get_field_opt, index) =
+              match get_field_opt with
+              (* If we already found the field, continue. *)
+              | Some _ -> (get_field_opt, index)
+              (* Check to see if the name matches. If so, we are done. *)
+              | None -> 
+                if (field_name <> name) || ("_" = name) then
+                  (None, index + 1)
+                else
+                  let value = GetElement (field_type, input_value, index) in
+                  (Some value, index)
+            in
+            (* If we found the field, match the pattern. Otherwise, produce an error. *)
+            let (get_field_opt, _) = StringMap.fold find_field field_types initial_data in
+            match get_field_opt with
+            | None ->
+              let error_message =
+                "The type " ^ (string_of_type typ) 
+                ^ " has no field named \"" ^ name ^ "\"."
+              in
+              let new_ctx = emit_error context span error_message in
+              (new_ctx, out_cond)
+            | Some get_field ->
+              let (ctx_after_cond, subcond) = condition_of_pattern context get_field pattern in
+              (ctx_after_cond, BoolCompare (out_cond, Ast.BooleanOr, subcond))
+          in
+          let (new_ctx, child_cond) =
+            List.fold_left fold_pattern (context, (BoolLiteral true)) field_patterns 
+          in
+          (new_ctx, child_cond)
+        end
+      | typ ->
+        let error_message = "The type " ^ (string_of_type typ) ^ " is not a structure." in
+        let new_ctx = emit_error context span error_message in
+        (new_ctx, BoolLiteral false)
+    end
+  (* TODO: More matches *)
+  | _ -> (context, BoolLiteral false)
