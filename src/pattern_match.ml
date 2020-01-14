@@ -10,6 +10,9 @@ let report_existing_name context span name =
 (** Deduces which type a given pattern expects. *)
 let rec deduce_type_from_pattern context existing_names = function
   | Ast.IgnoredPattern _ -> (context, existing_names, AnyType)
+  | Ast.ExprPattern (_, expr) ->
+    let (new_ctx, typ, _) = Compile_expr.compile_expr context expr in
+    (new_ctx, existing_names, typ)
   | Ast.NamedPattern (span, name) -> begin
       if StringMap.mem name existing_names then
         let new_ctx = report_existing_name context span name in
@@ -54,9 +57,9 @@ let rec deduce_type_from_pattern context existing_names = function
         | ConstructorSymbol (variant_type, _, (name, arg_types)) ->
           if (List.length arg_types) != (List.length patterns) then
             let error_msg = 
-              "The constructor \"" ^ name ^ "\" expects"
-              ^ (string_of_int (List.length arg_types)) ^ "argument(s), but this pattern"
-              ^ "only matches " ^ (string_of_int (List.length patterns)) ^ "argument(s)."
+              "The constructor \"" ^ name ^ "\" expects "
+              ^ (string_of_int (List.length arg_types)) ^ " argument(s), but this pattern"
+              ^ " only matches " ^ (string_of_int (List.length patterns)) ^ " argument(s)."
             in
             let new_ctx = Ssa_context.emit_error context span error_msg in
             (new_ctx, existing_names, UnknownType)
@@ -110,8 +113,14 @@ let rec deduce_type_from_pattern context existing_names = function
  * For example, a struct pattern must be matched against some value. *)
 let rec condition_of_pattern context input_value = function
   | Ast.IgnoredPattern _
-  | Ast.NamedPattern _
-  | Ast.AliasedPattern _ -> (context, BoolLiteral true)
+  | Ast.NamedPattern _ -> (context, BoolLiteral true)
+  | Ast.AliasedPattern (_, inner, _) -> condition_of_pattern context input_value inner
+  (* Just a simple boolean comparison *)
+  | Ast.ExprPattern (span, _) ->
+    (* TODO: Expr patterns *)
+    let error_msg =  "Cannot yet compile expr patterns" in
+    let new_ctx = Ssa_context.emit_error context span error_msg in
+    (new_ctx, BoolLiteral false)
   (* Combine all child patterns via OR *)
   | Ast.MultiPattern (_, children) ->
     let fold_child (context, out_cond) child =
@@ -180,12 +189,12 @@ let rec condition_of_pattern context input_value = function
         (new_ctx, BoolLiteral false)
       else begin
         match Scope.find variant_name context.scope with
-        | ConstructorSymbol (_, _, (name, arg_types)) ->
+        | ConstructorSymbol (_, index, (name, arg_types)) ->
           if (List.length arg_types) != (List.length patterns) then
             let error_msg = 
-              "The constructor \"" ^ name ^ "\" expects"
-              ^ (string_of_int (List.length arg_types)) ^ "argument(s), but this pattern"
-              ^ "only matches " ^ (string_of_int (List.length patterns)) ^ "argument(s)."
+              "The constructor \"" ^ name ^ "\" expects "
+              ^ (string_of_int (List.length arg_types)) ^ " argument(s), but this pattern"
+              ^ " only matches " ^ (string_of_int (List.length patterns)) ^ " argument(s)."
             in
             let new_ctx = Ssa_context.emit_error context span error_msg in
             (new_ctx, BoolLiteral false)
@@ -199,7 +208,10 @@ let rec condition_of_pattern context input_value = function
               (new_ctx, BoolCompare (out_cond, Ast.BooleanOr, subcond), index + 1)
             in
             let combined = List.combine arg_types patterns in
-            let (new_ctx, new_cond, _ ) = List.fold_left fold_arg (context, (BoolLiteral true), 0) combined in
+            let type_match = 
+              IntArithmetic (GetElement (BoolType, input_value, 0), Ast.Eq, (IntLiteral index))
+            in
+            let (new_ctx, new_cond, _ ) = List.fold_left fold_arg (context, type_match, 0) combined in
             (new_ctx, new_cond)
         | sym ->
           let error_msg = 

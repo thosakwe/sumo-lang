@@ -148,15 +148,17 @@ stmt:
 match_clause: p = pattern b = block { ($loc, p, b) }
 
 pattern:
+  | n = id LPAREN p = separated_list(COMMA, pattern) RPAREN { Ast.ConstructorPattern ($loc, n, p) }
   | n = id { if n = "_" then (Ast.IgnoredPattern $loc) else (Ast.NamedPattern ($loc, n)) }
   | LCURLY p = separated_list(COMMA, struct_pattern) RCURLY { Ast.StructPattern ($loc, p) }
-  | n = id LPAREN p = separated_list(COMMA, pattern) RPAREN { Ast.ConstructorPattern ($loc, n, p) }
   | p = pattern AS n = id { Ast.AliasedPattern($loc, p, n) }
   | option(BW_OR) p = separated_list(BW_OR, pattern) { Ast.MultiPattern($loc, p) }
+  | EQUALS v = expr { Ast.ExprPattern ($loc, v) }
+  | LPAREN p = pattern RPAREN { p }
 
 struct_pattern:
   | n = id { ($loc, n, (if n = "_" then (Ast.IgnoredPattern $loc) else (Ast.NamedPattern ($loc, n)))) }
-  | n = id EQUALS p = pattern { ($loc, n, p) }
+  | n = id COLON p = pattern { ($loc, n, p) }
 
 if_clause:
   | IF LPAREN c = expr RPAREN b = stmt { Ast.BasicIfClause ($loc, c, b) }
@@ -243,7 +245,7 @@ expr:
     { Ast.Assign ($loc, t, (Ast.BinaryAssign Ast.BooleanOr), v) }
 
 
-struct_value_field: n = id EQUALS v = expr { ($loc, n, v) }
+struct_value_field: n = id COLON v = expr { ($loc, n, v) }
 
 id:
   | v = UPPER_ID { v }

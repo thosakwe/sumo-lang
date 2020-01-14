@@ -312,12 +312,15 @@ let rec compile_stmt (initial_context, out_list, expected_return) stmt =
          * If so, create a block, which destructs the condition, and then
          * runs whatever was in the original `block`. *)
         match cast_value new_ctx span compiled_cond_opt actual_type expected_type with
-        | (ctx_after_cast, Error _) -> (ctx_after_cast, out_list)
-        | (ctx_after_cast, Ok coerced_value_opt) -> 
-          (* TODO: Destruct objects into assignments *)
-          (* TODO: Convert patterns into if clauses *)
-          let _ = coerced_value_opt, block in
-          (ctx_after_cast, [])
+        | (ctx_after_cast, Error _)
+        | (ctx_after_cast, Ok (None)) -> (ctx_after_cast, out_list)
+        | (ctx_after_cast, Ok (Some coerced_value)) ->  begin
+            (* Convert patterns into if clauses *)
+            (* TODO: Destruct objects into assignments *)
+            let (ctx_after_cond, new_cond) = condition_of_pattern ctx_after_cast coerced_value pattern in
+            print_endline (string_of_value new_cond);
+            (ctx_after_cond, out_list @ [new_cond, block])
+          end
       in
       (* TODO: Combine units into an if statement *)
       let (ctx_after_units, if_units) = List.fold_left fold_clause initial_data clauses in
