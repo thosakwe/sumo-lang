@@ -148,14 +148,14 @@ stmt:
 match_clause: p = pattern b = block { ($loc, p, b) }
 
 pattern:
-  | n = id { if n = "_" then (Ast.IgnoredParam $loc) else (Ast.NamedParam ($loc, n)) }
+  | n = id { if n = "_" then (Ast.IgnoredPattern $loc) else (Ast.NamedPattern ($loc, n)) }
   | LCURLY p = separated_list(COMMA, struct_pattern) RCURLY { Ast.StructPattern ($loc, p) }
   | n = id LPAREN p = separated_list(COMMA, pattern) RPAREN { Ast.ConstructorPattern ($loc, n, p) }
   | p = pattern AS n = id { Ast.AliasedPattern($loc, p, n) }
   | option(BW_OR) p = separated_list(BW_OR, pattern) { Ast.MultiPattern($loc, p) }
 
 struct_pattern:
-  | n = id { ($loc, n, (Ast.NamedParam ($loc, n))) }
+  | n = id { ($loc, n, (if n = "_" then (Ast.IgnoredPattern $loc) else (Ast.NamedPattern ($loc, n)))) }
   | n = id EQUALS p = pattern { ($loc, n, p) }
 
 if_clause:

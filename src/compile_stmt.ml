@@ -300,15 +300,29 @@ let rec compile_stmt (initial_context, out_list, expected_return) stmt =
   | Ast.MatchStmt (span, cond, clauses) -> begin
       let context = handle_dead_code span initial_context in
       let (ctx_after_cond, actual_type, compiled_cond_opt) = compile_expr context cond in
+      (* Convert each match clause into an if clause. 
+       * Then, convert them into a series of nested if/else statements.
+       * Finally, compile this generated if statement. *)
       let initial_data = (ctx_after_cond, []) in
       let fold_clause (context, out_list) (span, pattern, block) =
         let (new_ctx, names, expected_type) = deduce_type_from_pattern context StringMap.empty pattern in
+        (* TODO: Something with the names *)
+        let _ = names in
+        (* Ensure the condition is castable to the expected type.
+         * If so, create a block, which destructs the condition, and then
+         * runs whatever was in the original `block`. *)
         match cast_value new_ctx span compiled_cond_opt actual_type expected_type with
         | (ctx_after_cast, Error _) -> (ctx_after_cast, out_list)
         | (ctx_after_cast, Ok coerced_value_opt) -> 
-          ()
+          (* TODO: Destruct objects into assignments *)
+          (* TODO: Convert patterns into if clauses *)
+          let _ = coerced_value_opt, block in
+          (ctx_after_cast, [])
       in
-      ()
+      (* TODO: Combine units into an if statement *)
+      let (ctx_after_units, if_units) = List.fold_left fold_clause initial_data clauses in
+      let _ = if_units in
+      (ctx_after_units, out_list, expected_return)
     end
 
 and compile_if_clause context clause name if_end_name expected_return =
