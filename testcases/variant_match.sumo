@@ -5,6 +5,7 @@ type MyVariant = var
 fn main(): int {
   var x = Yes(-45)
   match x with {
-    No(x) -> 2
+    No() -> 2
+    Yes(n) -> n
   }
 }

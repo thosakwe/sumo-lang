@@ -148,6 +148,7 @@ stmt:
 match_clause: p = pattern b = block { ($loc, p, b) }
 
 pattern:
+  | n = id LPAREN RPAREN { Ast.ConstructorPattern ($loc, n, []) }
   | n = id LPAREN p = separated_list(COMMA, pattern) RPAREN { Ast.ConstructorPattern ($loc, n, p) }
   | n = id { if n = "_" then (Ast.IgnoredPattern $loc) else (Ast.NamedPattern ($loc, n)) }
   | LCURLY p = separated_list(COMMA, struct_pattern) RCURLY { Ast.StructPattern ($loc, p) }

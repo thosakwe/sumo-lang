@@ -318,7 +318,6 @@ let rec compile_stmt (initial_context, out_list, expected_return) stmt =
             (* Convert patterns into if clauses *)
             (* TODO: Destruct objects into assignments *)
             let (ctx_after_cond, new_cond) = condition_of_pattern ctx_after_cast coerced_value pattern in
-            print_endline (string_of_value new_cond);
             (ctx_after_cond, out_list @ [new_cond, block])
           end
       in

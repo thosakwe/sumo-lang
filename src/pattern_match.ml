@@ -170,7 +170,7 @@ let rec condition_of_pattern context input_value = function
               (new_ctx, out_cond)
             | Some get_field ->
               let (ctx_after_cond, subcond) = condition_of_pattern context get_field pattern in
-              (ctx_after_cond, BoolCompare (out_cond, Ast.BooleanOr, subcond))
+              (ctx_after_cond, BoolCompare (out_cond, Ast.BooleanAnd, subcond))
           in
           let (new_ctx, child_cond) =
             List.fold_left fold_pattern (context, (BoolLiteral true)) field_patterns 
@@ -201,11 +201,11 @@ let rec condition_of_pattern context input_value = function
           else
             (* Similar to how we converted struct fields, we must compute the
              * index of each constructor argument (this is easy, because this is a list).
-             * We then combine each subpattern match via OR. *)
+             * We then combine each subpattern match via AND. *)
             let fold_arg (context, out_cond, index) (arg_type, pattern) =
               let child_value = GetElement (arg_type, input_value, index + 1) in
               let (new_ctx, subcond) = condition_of_pattern context child_value pattern in
-              (new_ctx, BoolCompare (out_cond, Ast.BooleanOr, subcond), index + 1)
+              (new_ctx, BoolCompare (out_cond, Ast.BooleanAnd, subcond), index + 1)
             in
             let combined = List.combine arg_types patterns in
             let type_match = 
