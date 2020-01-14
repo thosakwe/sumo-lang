@@ -318,13 +318,50 @@ let rec compile_stmt (initial_context, out_list, expected_return) stmt =
             (* Convert patterns into if clauses *)
             (* TODO: Destruct objects into assignments *)
             let (ctx_after_cond, new_cond) = condition_of_pattern ctx_after_cast coerced_value pattern in
-            (ctx_after_cond, out_list @ [new_cond, block])
+            (ctx_after_cond, out_list @ [new_cond, [], block])
           end
       in
-      (* TODO: Combine units into an if statement *)
-      let (ctx_after_units, if_units) = List.fold_left fold_clause initial_data clauses in
-      let _ = if_units in
-      (ctx_after_units, out_list, expected_return)
+      (* TODO: Combine units into an if statement. There should be one "end block."
+       * First, convert each block into SSA. Then, combine them. *)
+      let (end_block_name, ctx_after_units, if_units) = 
+        let (ctx, units) = List.fold_left fold_clause initial_data clauses  in
+        let (name, next_namer) = Namer.next_name "pm_end_block" ctx.namer in
+        let new_ctx = { ctx with namer = next_namer } in
+        (name, new_ctx, units)
+      in
+
+
+      let fold_if_unit (context, block_name, out_list) (cond, prelude, stmts) =
+        let (ctx_after_block, block_instrs, _) =
+          compile_block "match_unit" context compile_stmt expected_return (span, stmts)
+        in
+        let (next_block_name, next_namer) = Namer.next_name "pm_block" ctx_after_block.namer in
+        let ctx_after_namer = { ctx_after_block with namer = next_namer } in
+        let block = Block (block_name, prelude @ block_instrs @ [(span, Jump end_block_name)] ) in
+        let all_instrs =
+          [
+            (span, block);
+            (span, JumpIf (cond, block_name, next_block_name));
+            (span, PositionAtEnd next_block_name)
+          ]
+        in
+        (ctx_after_namer, next_block_name, out_list @ all_instrs)
+      in
+
+      let (ctx_after_merge, _, merged_instrs) =
+        let (first_block_name, next_namer) = Namer.next_name "pm_block" ctx_after_units.namer in
+        let ctx_after_namer = { ctx_after_units with namer = next_namer } in
+        List.fold_left fold_if_unit (ctx_after_namer, first_block_name, []) if_units 
+      in
+
+      (ctx_after_merge, 
+       out_list 
+       @ merged_instrs 
+       @ [
+         (span, Block (end_block_name, []));
+         (span, PositionAtEnd end_block_name);
+       ], 
+       expected_return)
     end
 
 and compile_if_clause context clause name if_end_name expected_return =
